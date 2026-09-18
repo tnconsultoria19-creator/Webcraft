@@ -3,6 +3,7 @@ import path from 'path';
 import cors from 'cors';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { handleApiRequest } from './src/db/apiHandlers';
 
 let aiClient: GoogleGenAI | null = null;
 function getAIClient(): GoogleGenAI {
@@ -23,6 +24,20 @@ async function startServer() {
   // Static route for uploads if local
   const uploadsPath = path.join(process.cwd(), 'data', 'uploads');
   app.use('/data/uploads', express.static(uploadsPath));
+
+  // Mount unified API handler for all standard /api/* endpoints
+  app.all('/api/*', async (req, res, next) => {
+    if (req.path === '/api/ai/sales-assistant' || req.path === '/api/health') {
+      return next();
+    }
+    try {
+      const response = await handleApiRequest(req.path, req.method, req.body, req.headers);
+      res.status(response.status).json(response.json);
+    } catch (err: any) {
+      console.error('Local Express API Error:', err);
+      res.status(500).json({ error: err.message || 'Internal Server Error' });
+    }
+  });
 
   // Health check API
   app.get('/api/health', (_req, res) => {

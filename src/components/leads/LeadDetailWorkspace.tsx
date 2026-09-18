@@ -934,7 +934,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
         })
       });
 
-      const json = await res.json();
+      const json = (await res.json()) as any;
       if (json.success && json.data) {
         if (json.data.englishMessage) setAiCustomEnglish(json.data.englishMessage);
         if (json.data.portugueseMessage) setAiCustomPortuguese(json.data.portugueseMessage);
