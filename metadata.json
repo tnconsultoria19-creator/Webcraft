@@ -1,0 +1,6 @@
+{
+  "name": "WebCraft Studio Workflow",
+  "description": "Production-ready internal lead management, website production workflow, outreach tracker, and team accountability system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-heading: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  :root {
+    outline: none;
+    padding: 0;
+    box-sizing: border-box;
+    font-size: 15px;
+
+    /* WARM NEUTRALS */
+    --color-background: #F4F1EA;
+    --color-surface: #FFFFFF;
+    --color-surface-soft: #F0EDE5;
+    --color-border: #DDD8CE;
+
+    /* TEXT */
+    --color-text-primary: #262626;
+    --color-text-secondary: #68645D;
+    --color-text-muted: #969188;
+
+    /* PRIMARY BRAND */
+    --color-primary: #245F6B;
+    --color-primary-hover: #1E505A;
+    --color-primary-soft: #E5EEEE;
+
+    /* SECONDARY BRAND */
+    --color-olive: #686E5E;
+    --color-olive-soft: #E8E9E2;
+
+    /* WARM ACCENT */
+    --color-terracotta: #B56F55;
+    --color-terracotta-soft: #F1E3DD;
+
+    /* GOLD / ATTENTION */
+    --color-ochre: #D9A441;
+    --color-ochre-soft: #F5EBD2;
+
+    /* DARK */
+    --color-charcoal: #292A29;
+
+    /* SUCCESS */
+    --color-success: #4F765C;
+    --color-success-soft: #E5EDE7;
+
+    /* ERROR */
+    --color-error: #A65B55;
+    --color-error-soft: #F1E2E0;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+
+    --sidebar-width: 17rem;
+    --header-height: 4.5rem;
+
+    --font-family: "Poppins", sans-serif;
+  }
+
+  html {
+    font-size: 15px;
+    scroll-behavior: smooth;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.015em;
+  }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    color: var(--color-text-secondary);
+    background-color: var(--color-background);
+    line-height: 1.75;
+    letter-spacing: 0.018em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+    color: #292A29;
+    font-weight: 600;
+    line-height: 1.45;
+    letter-spacing: 0.005em;
+  }
+
+  p {
+    line-height: 1.75;
+    letter-spacing: 0.015em;
+  }
+
+  input, button, select, textarea, optgroup {
+    font-family: 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    letter-spacing: 0.015em;
+    line-height: 1.6;
+  }
+}
+
+/* Gymove Style Utilities */
+.bg-gymove-primary { background-color: #245F6B; }
+.bg-gymove-light-blue { background-color: #E5EEEE; }
+.bg-gymove-yellow { background-color: #D9A441; }
+.bg-gymove-green { background-color: #4F765C; }
+.bg-gymove-pink { background-color: #A65B55; }
+.bg-gymove-cyan { background-color: #B56F55; }
+.bg-gymove-orange { background-color: #D9A441; }
+.bg-gymove-card { background-color: #ffffff; }
+.bg-gymove-bg { background-color: #F0EDE5; }
+
+.text-gymove-dark { color: #292A29; }
+.text-gymove-muted { color: #68645D; }
+.text-gymove-primary { color: #245F6B; }
+.text-gymove-yellow { color: #D9A441; }
+.text-gymove-green { color: #4F765C; }
+.text-gymove-pink { color: #A65B55; }
+.text-gymove-cyan { color: #B56F55; }
+
+.border-gymove { border-color: #DDD8CE; }
+.border-gymove-primary { border-color: #245F6B; }
+
+/* Custom Scrollbar matching Gymove */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F0EDE5;
+}
+::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #245F6B;
+}

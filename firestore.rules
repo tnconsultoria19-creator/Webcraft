@@ -1,0 +1,51 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Leads & Prospects
+    match /leads/{leadId} {
+      allow read, write: if true;
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow read, write: if true;
+    }
+
+    // Outreach Logs
+    match /outreachAttempts/{outreachId} {
+      allow read, write: if true;
+    }
+
+    // Lead Comments & Notes
+    match /leadNotes/{noteId} {
+      allow read, write: if true;
+    }
+
+    // Image Assets
+    match /images/{imageId} {
+      allow read, write: if true;
+    }
+
+    // Activity Audit Logs
+    match /activities/{activityId} {
+      allow read, write: if true;
+    }
+
+    // Financial Records & Earnings
+    match /financialRecords/{recordId} {
+      allow read, write: if true;
+    }
+
+    // Global Catch-all Fallback
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
+

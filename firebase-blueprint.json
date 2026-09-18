@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User profiles and roles in WebCraft Studio",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "manager", "member", "viewer"] },
+        "status": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "email", "displayName", "role"]
+    },
+    "leads": {
+      "title": "Lead",
+      "description": "Business leads in website sales pipeline",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "industry": { "type": "string" },
+        "city": { "type": "string" },
+        "province": { "type": "string" },
+        "country": { "type": "string" },
+        "address": { "type": "string" },
+        "website": { "type": "string" },
+        "existingWebsiteStatus": { "type": "string" },
+        "notes": { "type": "string" },
+        "source": { "type": "string" },
+        "stage": { "type": "string" },
+        "priority": { "type": "string" },
+        "quality": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "templateUrl": { "type": "string" },
+        "previewUrl": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "name", "source", "stage", "createdBy"]
+    },
+    "tasks": {
+      "title": "Task",
+      "description": "Operational production & outreach tasks",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leadId": { "type": "string" },
+        "leadName": { "type": "string" },
+        "leadStage": { "type": "string" },
+        "taskTypeId": { "type": "string" },
+        "taskTypeKey": { "type": "string" },
+        "taskTypeName": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "assigned", "in_progress", "blocked", "completed", "cancelled"] },
+        "createdBy": { "type": "string" },
+        "createdByName": { "type": "string" },
+        "assignedTo": { "type": "string" },
+        "assignedToName": { "type": "string" },
+        "rateValue": { "type": "number" },
+        "startedAt": { "type": "string" },
+        "completedAt": { "type": "string" },
+        "version": { "type": "number" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "leadId", "taskTypeKey", "status", "createdBy"]
+    },
+    "outreachAttempts": {
+      "title": "Outreach Attempt",
+      "description": "Logged outreach communication history",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leadId": { "type": "string" },
+        "channel": { "type": "string" },
+        "sentBy": { "type": "string" },
+        "sentByName": { "type": "string" },
+        "sentAt": { "type": "string" },
+        "messageUsed": { "type": "string" },
+        "status": { "type": "string" },
+        "responseType": { "type": "string" },
+        "responseNotes": { "type": "string" },
+        "nextAction": { "type": "string" },
+        "followUpDate": { "type": "string" }
+      },
+      "required": ["id", "leadId", "channel", "sentBy"]
+    },
+    "images": {
+      "title": "Image Asset",
+      "description": "Metadata for uploaded and pasted business assets",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "leadId": { "type": "string" },
+        "objectKey": { "type": "string" },
+        "url": { "type": "string" },
+        "filename": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "uploadedBy": { "type": "string" },
+        "uploadedByName": { "type": "string" },
+        "isPrimary": { "type": "boolean" },
+        "caption": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "leadId", "url", "uploadedBy"]
+    },
+    "financialRecords": {
+      "title": "Financial Record",
+      "description": "Attributed agent action earnings and client success bonuses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "leadId": { "type": "string" },
+        "leadName": { "type": "string" },
+        "action": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "currencySymbol": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "earningType": { "type": "string" },
+        "status": { "type": "string" },
+        "notes": { "type": "string" },
+        "overriddenBy": { "type": "string" },
+        "overriddenAt": { "type": "string" },
+        "originalAmount": { "type": "number" },
+        "isReversed": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "leadId", "action", "amount", "timestamp", "status"]
+    }
+  }
+}
