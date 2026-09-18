@@ -26,11 +26,5 @@
       "binding": "BUCKET",
       "bucket_name": "webcraft-uploads"
     }
-  ],
-  "kv_namespaces": [
-    {
-      "binding": "KV",
-      "id": "webcraft-kv-store"
-    }
   ]
 }

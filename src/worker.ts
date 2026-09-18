@@ -4,7 +4,6 @@ import { GoogleGenAI } from '@google/genai';
 interface Env {
   DB: any;
   BUCKET: any;
-  KV?: any;
   GEMINI_API_KEY?: string;
   ASSETS?: any;
 }
