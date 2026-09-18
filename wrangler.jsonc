@@ -3,6 +3,10 @@
   "name": "webcraft-studio",
   "main": "src/worker.ts",
   "compatibility_date": "2025-02-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "build": {
+    "command": "npm run build"
+  },
   "observability": {
     "enabled": true
   },
