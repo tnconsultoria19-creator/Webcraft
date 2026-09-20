@@ -375,18 +375,6 @@ export function findLeadDuplicates(targetLead: Lead, allLeads: Lead[]): LeadDupl
 }
 
 /**
- * Builds duplicate reports once for the current lead dataset so UI components can
- * reuse the results instead of recalculating duplicates during every render.
- */
-export function computeAllLeadDuplicates(allLeads: Lead[]): Map<string, LeadDuplicateReport> {
-  const reports = new Map<string, LeadDuplicateReport>();
-  for (const lead of allLeads) {
-    reports.set(lead.id, findLeadDuplicates(lead, allLeads));
-  }
-  return reports;
-}
-
-/**
  * Checks if a lead matches a search term across all variations of phone numbers
  * (with/without spaces, country codes, formats), business names (accents, punctuation),
  * contacts, email, address, city, country, niche, and duplicate status.
