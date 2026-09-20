@@ -489,18 +489,49 @@ export async function handleApiRequest(
     if (!oldLead) return { status: 404, json: { error: 'Lead not found.' } };
 
     const now = new Date().toISOString();
-    const columns = Object.keys(updates);
+    const allowedColumns = new Set([
+      'name','contactPerson','phone','email','description','category','industry','city','province','country','address',
+      'website','existingWebsiteStatus','googleBusinessUrl','sourceUrl','sourceId','notes','source','createdMethod',
+      'stage','priority','quality','ownerId','ownerName','templateUrl','previewUrl','workingUrl','githubUrl',
+      'productionNotes','projectDomainName','lastActivityAt','lastOutreachAt','lastOutreachChannel','outreachCount',
+      'linkCreatorId','linkCreatorName','linkCreatedAt','messageSenderId','messageSenderName','messageSentAt',
+      'linkBonusAwarded','messageBonusAwarded','isDealClosed','closedAt','clientPrice','currency','deletedAt'
+    ]);
+    const leadUpdates: Record<string, any> = {};
+    for (const [key, value] of Object.entries(updates || {})) {
+      if (allowedColumns.has(key)) leadUpdates[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
+    }
+    const columns = Object.keys(leadUpdates);
 
     if (columns.length > 0) {
       const setClause = columns.map(col => `${col} = ?`).join(', ') + ', updatedAt = ?';
-      const bindArgs = columns.map(col => {
-        const val = updates[col];
-        if (typeof val === 'boolean') return val ? 1 : 0;
-        return val;
-      });
+      const bindArgs = columns.map(col => leadUpdates[col]);
       bindArgs.push(now, leadId);
 
       await db.prepare(`UPDATE leads SET ${setClause} WHERE id = ?`).bind(...bindArgs).run();
+    }
+
+    // Preserve embedded contacts/channels when editing a migrated profile in JSON mode.
+    if (Array.isArray(updates?.contacts)) {
+      await db.prepare('DELETE FROM contacts WHERE leadId = ?').bind(leadId).run();
+      for (const contact of updates.contacts) {
+        if (!contact?.value) continue;
+        const value = String(contact.value).trim();
+        const type = String(contact.type || 'other');
+        const normalized = /phone|whatsapp/i.test(type) ? value.replace(/\D/g, '') : value.toLowerCase();
+        await db.prepare('INSERT INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(genId('c'), leadId, type, value, normalized, contact.contactPerson || '', contact.position || '', now).run();
+      }
+    }
+
+    if (Array.isArray(updates?.channels)) {
+      await db.prepare('DELETE FROM channels WHERE leadId = ?').bind(leadId).run();
+      for (const channel of updates.channels) {
+        const value = String(channel || '').trim();
+        if (!value) continue;
+        await db.prepare('INSERT INTO channels (id, leadId, channel, detailValue, createdAt) VALUES (?, ?, ?, ?, ?)')
+          .bind(genId('ch'), leadId, value, null, now).run();
+      }
     }
 
     if (updates.stage && updates.stage !== oldLead.stage) {
