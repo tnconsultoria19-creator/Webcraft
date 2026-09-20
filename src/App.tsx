@@ -30,7 +30,7 @@ import { MainDashboard } from './components/dashboard/MainDashboard';
 import { PersonalEarningsModal } from './components/dashboard/PersonalEarningsModal';
 import { TeamPerformanceModal } from './components/dashboard/TeamPerformanceModal';
 import { AdminSettingsModal } from './components/admin/AdminSettingsModal';
-import { matchLeadComprehensive, findLeadDuplicates } from './lib/searchUtils';
+import { matchLeadComprehensive, computeAllLeadDuplicates } from './lib/searchUtils';
 import { isWithinDateRange } from './lib/dateFilters';
 
 export function App() {
@@ -107,9 +107,14 @@ export function App() {
   };
 
   // Duplicates count across all leads
+  const duplicateReports = useMemo(() => computeAllLeadDuplicates(leads), [leads]);
   const duplicatesCount = useMemo(() => {
-    return leads.filter((l) => findLeadDuplicates(l, leads).hasDuplicates).length;
-  }, [leads]);
+    let count = 0;
+    duplicateReports.forEach((report) => {
+      if (report.hasDuplicates) count += 1;
+    });
+    return count;
+  }, [duplicateReports]);
 
   // Derived unique lists for dynamic dropdowns
   const availableSources = useMemo(() => {
@@ -250,8 +255,8 @@ export function App() {
 
       // 12. DUPLICATES ONLY filter
       if (pipelineFilters.duplicatesOnly) {
-        const dup = findLeadDuplicates(l, leads);
-        if (!dup.hasDuplicates) return false;
+        const dup = duplicateReports.get(l.id);
+        if (!dup?.hasDuplicates) return false;
       }
 
       // 13. SEARCH filter
@@ -293,7 +298,7 @@ export function App() {
     });
 
     return result;
-  }, [leads, pipelineFilters, tasks, outreach, activities, currentUser]);
+  }, [leads, duplicateReports, pipelineFilters, tasks, outreach, activities, currentUser]);
 
   const handleDeleteLead = async (leadId: string, _leadName?: string) => {
     if (!currentUser) return;
@@ -696,6 +701,7 @@ export function App() {
             pipelineLayout === 'kanban' ? (
               <LeadKanbanView
                 leads={filteredLeads}
+                duplicateReports={duplicateReports}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onUpdateStage={async (id, newStage) => {
                   await updateLeadInFirestore(id, { stage: newStage }, currentUser.id, currentUser.displayName);
@@ -705,6 +711,7 @@ export function App() {
             ) : (
               <LeadTableView
                 leads={filteredLeads}
+                duplicateReports={duplicateReports}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onDeleteLead={handleDeleteLead}
               />
