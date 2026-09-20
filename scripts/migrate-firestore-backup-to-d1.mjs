@@ -57,8 +57,6 @@ const tasks = docs('tasks.json');
 const activities = docs('activities.json');
 
 const lines = [
-  'PRAGMA foreign_keys=OFF;',
-  'BEGIN TRANSACTION;',
   '-- WebCraft Studio Firestore -> Cloudflare D1 migration',
   '-- Generated from the complete Firestore backup files.'
 ];
@@ -144,7 +142,6 @@ for (const a of activities) {
   ));
 }
 
-lines.push('COMMIT;','PRAGMA foreign_keys=ON;');
 fs.writeFileSync(outFile, lines.join('\n') + '\n');
 console.log(`Generated ${outFile}`);
 console.log(`Users: ${users.length} | Leads: ${leads.length} | Tasks: ${tasks.length} | Activities: ${activities.length}`);
