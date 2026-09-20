@@ -618,29 +618,50 @@ export async function handleApiRequest(
     return { status: 200, json: records };
   }
 
-  // FILE UPLOAD AND BASE64 CLIPBOARD
+  // FILE UPLOAD AND BASE64 CLIPBOARD -> Cloudflare R2
   if (path === '/api/uploads' && method === 'POST') {
     const { leadId, fileOrBase64, filename, caption, userId, userName } = body;
+    if (!leadId || !fileOrBase64 || !fileOrBase64.startsWith('data:')) {
+      return { status: 400, json: { error: 'leadId and a base64 data URL are required.' } };
+    }
+    if (!env?.BUCKET) {
+      return { status: 500, json: { error: 'R2 storage is not configured.' } };
+    }
+
+    const match = fileOrBase64.match(/^data:(image\\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) {
+      return { status: 400, json: { error: 'Invalid image data URL.' } };
+    }
+
+    const mimeType = match[1];
+    const base64 = match[2];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const maxSize = 10 * 1024 * 1024;
+    if (bytes.byteLength > maxSize) {
+      return { status: 413, json: { error: 'Image exceeds the 10MB upload limit.' } };
+    }
+
+    const safeName = (filename || `upload_${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const objectKey = `leads/${leadId}/images/${Date.now()}_${genId('file')}_${safeName}`;
+    await env.BUCKET.put(objectKey, bytes, {
+      httpMetadata: { contentType: mimeType },
+      customMetadata: { leadId: String(leadId), uploadedBy: String(userId || ''), originalFilename: safeName }
+    });
+
     const now = new Date().toISOString();
     const id = genId('img');
-
-    // If local, we can save base64 clipboards as mock urls, or upload strings.
-    // For Cloudflare, this would write to the R2 Bucket.
-    let url = 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=600&q=80';
-
-    if (fileOrBase64 && fileOrBase64.startsWith('data:')) {
-      // In R2 production we would write standard byte arrays.
-      // Locally, we write a mock caption or save to local assets if we want.
-      url = fileOrBase64; // Can keep as DataURL for visual preview in iframe
-    }
+    const url = `/api/uploads/file/${encodeURIComponent(objectKey)}`;
 
     await db.prepare(`
       INSERT INTO images (id, leadId, objectKey, url, filename, mimeType, fileSize, uploadedBy, uploadedByName, isPrimary, caption, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(id, leadId, filename, url, filename, 'image/jpeg', fileOrBase64 ? fileOrBase64.length : 100000, userId, userName, 1, caption || '', now).run();
+    `).bind(id, leadId, objectKey, url, safeName, mimeType, bytes.byteLength, userId, userName, 1, caption || '', now).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), userId, userName, 'image_uploaded', 'lead', leadId, filename, now)
+      .bind(genId('act'), userId, userName, 'image_uploaded', 'lead', leadId, safeName, now)
       .run();
 
     const image = await db.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
@@ -656,6 +677,9 @@ export async function handleApiRequest(
     const img = await db.prepare('SELECT * FROM images WHERE id = ?').bind(imageId).first();
     if (!img) return { status: 404, json: { error: 'Image not found.' } };
 
+    if (img.objectKey && env?.BUCKET) {
+      try { await env.BUCKET.delete(img.objectKey); } catch (e) { console.error('R2 delete failed:', e); }
+    }
     await db.prepare('DELETE FROM images WHERE id = ?').bind(imageId).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
