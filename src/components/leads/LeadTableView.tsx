@@ -3,19 +3,21 @@ import { Globe, Eye, ExternalLink, Phone, AlertTriangle, Trash2, FileText } from
 import { Lead } from '../../types';
 import { getStageLabel, formatDateTime, formatExternalUrl } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
-import { findLeadDuplicates } from '../../lib/searchUtils';
+import { LeadDuplicateReport } from '../../lib/searchUtils';
 import { ConfirmModal } from '../common/ConfirmModal';
 
 interface LeadTableViewProps {
   leads: Lead[];
   onSelectLead: (leadId: string) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
+  duplicateReports?: Map<string, LeadDuplicateReport>;
 }
 
 export const LeadTableView: React.FC<LeadTableViewProps> = ({
   leads,
   onSelectLead,
-  onDeleteLead
+  onDeleteLead,
+  duplicateReports
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
 
@@ -47,7 +49,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
             ) : (
               leads.map((lead) => {
                 const country = getCountryByName(lead.country || lead.city);
-                const dupReport = findLeadDuplicates(lead, leads);
+                const dupReport = duplicateReports?.get(lead.id);
                 const primaryContact = lead.contacts?.[0];
 
                 return (
@@ -74,13 +76,13 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             <span>Package</span>
                           </span>
                         )}
-                        {dupReport.hasDuplicates && (
+                        {dupReport?.hasDuplicates && (
                           <span
                             className="text-[10px] font-semibold text-[#91651B] bg-[#D9A441]/15 px-2 py-0.5 rounded-full flex items-center gap-1"
-                            title={`Duplicate: ${dupReport.matches.map((m) => m.reason).join(', ')}`}
+                            title={`Duplicate: ${dupReport?.matches.map((m) => m.reason).join(', ') || ''}`}
                           >
                             <AlertTriangle className="w-3 h-3 text-[#D9A441]" />
-                            <span>Dup ({dupReport.duplicateCount})</span>
+                            <span>Dup ({dupReport?.duplicateCount || 0})</span>
                           </span>
                         )}
                       </div>
