@@ -32,7 +32,7 @@ const requiredColumns: Record<string, string[]> = {
 
 export async function ensureD1Schema(db: any) {
   for (const sql of schema) {
-    const table = sql.match(/CREATE TABLE IF NOT EXISTS (\\w+)/i)?.[1];
+    const table = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i)?.[1];
     if (table && requiredColumns[table]) {
       const result = await db.prepare(`PRAGMA table_info(${table})`).all();
       const existing = new Set((result.results || []).map((row: any) => row.name));
