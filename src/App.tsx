@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LayoutGrid, List, Download, AlertTriangle, X } from 'lucide-react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from './lib/firebase';
 import { User, Lead, Task, OutreachAttempt, ActivityLog } from './types';
 import { api } from './lib/api';
 import {
@@ -316,55 +314,9 @@ export function App() {
   const [isTeamPerformanceOpen, setIsTeamPerformanceOpen] = useState(false);
   const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false);
 
-  // Auth & Session state listener
-  useEffect(() => {
-    let isMounted = true;
+  // Session state is fully managed by Cloudflare D1/localStorage.
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const profile = await syncUserProfile(firebaseUser.uid, firebaseUser.email || '', firebaseUser.displayName || undefined);
-          if (isMounted) {
-            setCurrentUser(profile);
-            setShowAuthModal(false);
-            setIsInitializing(false);
-          }
-        } catch (e) {
-          console.error('Failed to sync user profile on auth change', e);
-        }
-      }
-    });
-
-    const initSession = async () => {
-      const storedUid = localStorage.getItem('webcraft_user_id');
-      if (storedUid) {
-        try {
-          const profile = await getUserProfile(storedUid);
-          if (profile && isMounted) {
-            setCurrentUser(profile);
-            setShowAuthModal(false);
-            setIsInitializing(false);
-            return;
-          }
-        } catch (e) {
-          console.error('Failed to restore user session:', e);
-        }
-      }
-
-      if (isMounted) {
-        setIsInitializing(false);
-      }
-    };
-
-    initSession();
-
-    return () => {
-      isMounted = false;
-      unsubscribe();
-    };
-  }, []);
-
-  // Real-time Firestore sync listener when user is logged in
+  // Real-time data polling when user is logged in
   useEffect(() => {
     if (currentUser) {
       const unsubLeads = subscribeToLeads((updatedLeads) => {
