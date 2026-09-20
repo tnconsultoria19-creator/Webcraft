@@ -72,14 +72,30 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
     }
 
     setParsedData((previous) => {
-      if (!previous) return result.data!;
+      if (!previous) {
+        const firstProfile = { ...(result.data!.clientProfile || {}) };
+        if (!firstProfile.businessName && result.data!.businessName) {
+          firstProfile.businessName = result.data!.businessName;
+        }
+        return {
+          ...result.data!,
+          clientProfile: firstProfile
+        };
+      }
+
+      const mergedProfile = {
+        ...previous.clientProfile,
+        ...(result.data!.clientProfile || {})
+      };
+
+      if (!mergedProfile.businessName && result.data!.businessName) {
+        mergedProfile.businessName = result.data!.businessName;
+      }
+
       return {
         geminiInstruction: result.data!.geminiInstruction || previous.geminiInstruction,
         rawClientProfileJson: result.data!.rawClientProfileJson || previous.rawClientProfileJson,
-        clientProfile:
-          Object.keys(result.data!.clientProfile || {}).length > 0
-            ? { ...previous.clientProfile, ...result.data!.clientProfile }
-            : previous.clientProfile,
+        clientProfile: mergedProfile,
         businessName: result.data!.businessName || previous.businessName,
         projectDomainName: result.data!.projectDomainName || previous.projectDomainName
       };
@@ -94,7 +110,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
       setCopyGeminiStatus(true);
       setTimeout(() => setCopyGeminiStatus(false), 2200);
     } catch (err) {
-      console.error('Failed to copy Gemini instruction:', err);
+      console.error('Failed to copy Gemini package JSON:', err);
     }
   };
 
@@ -123,11 +139,18 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
   // SAVE CLIENT TO FIRESTORE
   const handleSaveClient = async (forceBypassDuplicate = false) => {
     if (!parsedData) return;
-    const { clientProfile } = parsedData;
 
-    // Validate businessName
-    if (!clientProfile.businessName || !clientProfile.businessName.trim()) {
-      setParseError('Business name is required.');
+    const clientProfile = {
+      ...parsedData.clientProfile,
+      businessName:
+        parsedData.clientProfile?.businessName?.toString().trim() ||
+        parsedData.businessName?.toString().trim() ||
+        ''
+    };
+
+    // Validate businessName. Output 1 can also provide the official business name.
+    if (!clientProfile.businessName) {
+      setParseError('Business name is required before the client/contact can be saved.');
       return;
     }
 
@@ -223,6 +246,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
           category: clientProfile.category || '',
           description: clientProfile.description || '',
           channels: channelsList,
+          projectDomainName: parsedData.projectDomainName || '',
           createdMethod: 'import',
           chatgptPackage: {
             geminiInstruction: parsedData.geminiInstruction,
@@ -238,7 +262,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
       );
 
       setSavedLead(newLead);
-      setSaveSuccessMsg('Client saved successfully.');
+      setSaveSuccessMsg('Client/contact saved successfully.');
       setShowDuplicateModal(false);
       onClientSaved(newLead);
     } catch (err: any) {
@@ -267,7 +291,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-[#DDD8CE] p-5 rounded-2xl shadow-xs">
         <div>
           <h1 className="text-xl font-bold text-[#292A29] tracking-tight">Create Client</h1>
-          <p className="text-xs text-[#68645D] mt-0.5">Paste the complete ChatGPT business package below.</p>
+          <p className="text-xs text-[#68645D] mt-0.5">Paste any one, two, or all three ChatGPT V4 output blocks below.</p>
         </div>
 
         {parsedData && (
@@ -375,7 +399,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#DDD8CE]/60 pb-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#245F6B] block">Block 1</span>
-                <h3 className="text-sm font-bold text-[#292A29]">GEMINI IMPLEMENTATION INSTRUCTION</h3>
+                <h3 className="text-sm font-bold text-[#292A29]">GEMINI WEBSITE PACKAGE JSON</h3>
               </div>
 
               <button
@@ -388,7 +412,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
                 }`}
               >
                 {copyGeminiStatus ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copyGeminiStatus ? 'Copied' : 'COPY GEMINI INSTRUCTION'}</span>
+                <span>{copyGeminiStatus ? 'Copied' : 'COPY GEMINI PACKAGE JSON'}</span>
               </button>
             </div>
 
