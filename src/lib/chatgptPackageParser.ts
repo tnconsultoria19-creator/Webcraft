@@ -178,7 +178,10 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
 
   // The user may paste any one, any two, or all three outputs.
   // Missing outputs are intentionally allowed.
-  const jsonExtract = extractJsonObject(text);
+  // Never let Output 1's website-package JSON be mistaken for Output 2's CRM JSON.
+  const hasOutput1Marker = /===\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\s*===/i.test(text);
+  const hasOutput2Marker = /===\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\s*===/i.test(text);
+  const jsonExtract = hasOutput2Marker || !hasOutput1Marker ? extractJsonObject(text) : null;
 
   let clientProfile: Record<string, any> = {};
   let formattedJson = '';
@@ -210,12 +213,10 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
       /^(?:#+\s*)?(?:SECTION\s*1\s*[:\-–—]?|OUTPUT\s*1\s*[:\-–—]?|GEMINI\s*IMPLEMENTATION\s*INSTRUCTION\s*[:\-–—]?)(?:[^\n]*\n)/im
     );
     if (s1HeaderMatch && s1HeaderMatch.index !== undefined) {
-      let end = jsonExtract?.startIndex ?? text.length;
+      const end = jsonExtract?.startIndex ?? text.length;
       const section1 = text.substring(s1HeaderMatch.index + s1HeaderMatch[0].length, end);
       geminiInstruction = section1.replace(/[\r\n]+[-=_]{3,}[\r\n]*$/, '').trim();
     } else if (!jsonExtract) {
-      // A short single-line value is more likely to be the Business Name / Project Name.
-      // Longer multi-line content is treated as a Gemini implementation instruction.
       const looksLikeStandaloneName = !text.includes('\n') && text.length <= 160;
       if (!looksLikeStandaloneName) {
         geminiInstruction = text;
@@ -236,7 +237,7 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
     }
   }
 
-  // Extract Output 3 / business name / project identifier.
+  // Extract Output 3 / project identifier.
   const afterJsonText = jsonExtract ? text.substring(jsonExtract.endIndex).trim() : '';
   let output3Value = '';
 
@@ -246,17 +247,56 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
   if (explicitOutput3?.[1]?.trim()) {
     output3Value = explicitOutput3[1].trim();
   } else {
-    const businessNameMatch = text.match(
-      /(?:^|\n)\s*(?:BUSINESS\s*NAME|PROJECT\s*\/\s*DOMAIN\s*NAME|DOMAIN\s*NAME|PROJECT\s*NAME)\s*[:\-–—]\s*([^\n]+)/i
+    const projectNameMatch = text.match(
+      /(?:^|\n)\s*(?:OUTPUT\s*3\s*[:\-–—]?\s*)?(?:PROJECT\s*\/\s*DOMAIN\s*NAME|DOMAIN\s*NAME|PROJECT\s*NAME)\s*[:\-–—]\s*([^\n]+)/i
     );
-    if (businessNameMatch?.[1]?.trim()) {
-      output3Value = businessNameMatch[1].trim();
-    } else if (afterJsonText) {
+    if (projectNameMatch?.[1]?.trim()) {
+      output3Value = projectNameMatch[1].trim();
+    } else if (afterJsonText && !hasOutput1Marker && !hasOutput2Marker) {
       output3Value = afterJsonText;
-    } else if (!businessNameFromProfile && !geminiInstruction) {
+    } else if (!businessNameFromProfile && !geminiInstruction && !hasOutput1Marker && !hasOutput2Marker) {
       output3Value = text;
     }
   }
+
+  // Output 1 is JSON in ChatGPT V4. Read its business/project metadata only when
+  // it is actually present; this does not invent any CRM information.
+  const output1Object = geminiInstruction ? (() => {
+    try {
+      const candidate = geminiInstruction.trim()
+        .replace(/^\`\`\`json\s*/i, '')
+        .replace(/\s*\`\`\`$/i, '');
+      const parsed = JSON.parse(candidate);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
+  })() : null;
+
+  const output1BusinessName = String(
+    output1Object?.business?.businessName ||
+    output1Object?.businessName ||
+    ''
+  ).trim();
+
+  const output1ProjectDomainName = String(
+    output1Object?.project?.domainName ||
+    output1Object?.domainName ||
+    ''
+  ).trim();
+
+  const legacyOutput3BusinessName =
+    output3Value && /\s/.test(output3Value) && !/^[a-z0-9]+$/i.test(output3Value)
+      ? output3Value
+        .replace(/^===.*?===/s, '')
+        .replace(/===.*$/s, '')
+        .trim()
+      : '';
+
+  const businessName =
+    businessNameFromProfile ||
+    output1BusinessName ||
+    legacyOutput3BusinessName;
 
   const normalizedFromOutput3 = normalizeProjectDomainName(output3Value);
   const projectDomainName =
@@ -264,50 +304,12 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
     normalizeProjectDomainName(output1ProjectDomainName) ||
     normalizeProjectDomainName(businessName);
 
-  // If the third output is the only thing supplied, treat its readable value as the
-  // business name so the user can continue and save the client instead of being blocked.
-  const output1BusinessName = (() => {
-    const match = text.match(
-      /===\\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===([\\s\\S]*?)(?:===\\s*END\\s+WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===|===\\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\\s*===|$)/i
-    );
-    if (!match?.[1]) return '';
-    try {
-      const parsed = JSON.parse(match[1].trim().replace(/^\`\`\`json\\s*/i, '').replace(/\\s*\`\`\`$/i, ''));
-      return String(parsed?.business?.businessName || '').trim();
-    } catch {
-      return '';
-    }
-  })();
-
-  const output1ProjectDomainName = (() => {
-    const match = text.match(
-      /===\\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===([\\s\\S]*?)(?:===\\s*END\\s+WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===|===\\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\\s*===|$)/i
-    );
-    if (!match?.[1]) return '';
-    try {
-      const parsed = JSON.parse(match[1].trim().replace(/^\`\`\`json\\s*/i, '').replace(/\\s*\`\`\`$/i, ''));
-      return String(parsed?.project?.domainName || '').trim();
-    } catch {
-      return '';
-    }
-  })();
-
-  const legacyOutput3BusinessName = output3Value && /\\s/.test(output3Value) ? output3Value
-    .replace(/^===.*?===/s, '')
-    .replace(/===.*$/s, '')
-    .trim() : '';
-
-  const businessName =
-    businessNameFromProfile ||
-    output1BusinessName ||
-    legacyOutput3BusinessName;
-
-  // A partial package is still a valid processing result as long as at least one
+  // A partial package is a valid processing result as long as at least one
   // supported output was supplied.
-  if (!geminiInstruction && !formattedJson && !output3Value) {
+  if (!geminiInstruction && !formattedJson && !output3Value && !businessName) {
     return {
       success: false,
-      error: 'No Gemini instruction, client profile JSON, or business name/project name was detected.'
+      error: 'No Gemini Website Package JSON, Client Profile JSON, or Project / Domain Name was detected.'
     };
   }
 
@@ -321,4 +323,5 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
       projectDomainName
     }
   };
+
 }
