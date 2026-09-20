@@ -30,7 +30,7 @@ import { MainDashboard } from './components/dashboard/MainDashboard';
 import { PersonalEarningsModal } from './components/dashboard/PersonalEarningsModal';
 import { TeamPerformanceModal } from './components/dashboard/TeamPerformanceModal';
 import { AdminSettingsModal } from './components/admin/AdminSettingsModal';
-import { matchLeadComprehensive, computeAllLeadDuplicates } from './lib/searchUtils';
+import { matchLeadComprehensive, findLeadDuplicates } from './lib/searchUtils';
 import { isWithinDateRange } from './lib/dateFilters';
 
 export function App() {
@@ -107,14 +107,9 @@ export function App() {
   };
 
   // Duplicates count across all leads
-  const duplicateReports = useMemo(() => computeAllLeadDuplicates(leads), [leads]);
   const duplicatesCount = useMemo(() => {
-    let count = 0;
-    duplicateReports.forEach((report) => {
-      if (report.hasDuplicates) count += 1;
-    });
-    return count;
-  }, [duplicateReports]);
+    return leads.filter((l) => findLeadDuplicates(l, leads).hasDuplicates).length;
+  }, [leads]);
 
   // Derived unique lists for dynamic dropdowns
   const availableSources = useMemo(() => {
@@ -255,8 +250,8 @@ export function App() {
 
       // 12. DUPLICATES ONLY filter
       if (pipelineFilters.duplicatesOnly) {
-        const dup = duplicateReports.get(l.id);
-        if (!dup?.hasDuplicates) return false;
+        const dup = findLeadDuplicates(l, leads);
+        if (!dup.hasDuplicates) return false;
       }
 
       // 13. SEARCH filter
@@ -298,7 +293,7 @@ export function App() {
     });
 
     return result;
-  }, [leads, duplicateReports, pipelineFilters, tasks, outreach, activities, currentUser]);
+  }, [leads, pipelineFilters, tasks, outreach, activities, currentUser]);
 
   const handleDeleteLead = async (leadId: string, _leadName?: string) => {
     if (!currentUser) return;
@@ -584,9 +579,6 @@ export function App() {
         {/* Top Header */}
         <Header
           currentUser={currentUser}
-          leads={leads}
-          tasks={tasks}
-          duplicateReports={duplicateReports}
           onOpenQuickAdd={() => setCurrentView('create_client')}
           onOpenAddLink={() => setIsAddLinkOpen(true)}
           onSearch={(q) => {
@@ -693,10 +685,6 @@ export function App() {
           {currentView === 'dashboard' && (
             <MainDashboard
               currentUser={currentUser}
-              leads={leads}
-              tasks={tasks}
-              outreach={outreach}
-              activities={activities}
               onSelectLead={(id) => setSelectedLeadId(id)}
               onOpenQuickAdd={() => setIsQuickAddOpen(true)}
               onDeleteLead={handleDeleteLead}
@@ -708,7 +696,6 @@ export function App() {
             pipelineLayout === 'kanban' ? (
               <LeadKanbanView
                 leads={filteredLeads}
-                duplicateReports={duplicateReports}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onUpdateStage={async (id, newStage) => {
                   await updateLeadInFirestore(id, { stage: newStage }, currentUser.id, currentUser.displayName);
@@ -718,7 +705,6 @@ export function App() {
             ) : (
               <LeadTableView
                 leads={filteredLeads}
-                duplicateReports={duplicateReports}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onDeleteLead={handleDeleteLead}
               />
