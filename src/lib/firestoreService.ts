@@ -20,39 +20,84 @@ export function cleanFirestoreData<T extends Record<string, any>>(obj: T): Parti
   return result;
 }
 
-// Polling Helper
+// Shared polling helper.
+// Multiple parts of the UI can subscribe to the same endpoint without creating duplicate network requests.
+type SharedSubscriber<T> = (data: T) => void;
+
+interface SharedPollerEntry<T> {
+  subscribers: Set<SharedSubscriber<T>>;
+  timer: ReturnType<typeof setTimeout> | null;
+  active: boolean;
+  inFlight: boolean;
+  intervalMs: number;
+  key?: string;
+  lastData?: T;
+}
+
+const sharedPollers = new Map<string, SharedPollerEntry<any>>();
+
 function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 8000, key?: string) {
-  let active = true;
-  let timer: ReturnType<typeof setTimeout> | null = null;
+  let entry = sharedPollers.get(url) as SharedPollerEntry<T> | undefined;
 
-  const poll = async () => {
-    if (!active) return;
+  if (!entry) {
+    entry = {
+      subscribers: new Set(),
+      timer: null,
+      active: true,
+      inFlight: false,
+      intervalMs,
+      key,
+      lastData: undefined
+    };
+    sharedPollers.set(url, entry);
 
-    try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Fetch failed for ' + url);
-      const data = await res.json() as any;
-      if (!active) return;
+    const poll = async () => {
+      if (!entry || !entry.active || entry.subscribers.size === 0 || entry.inFlight) return;
+      entry.inFlight = true;
 
-      if (key && data[key] !== undefined) {
-        callback(data[key]);
-      } else {
-        callback(data);
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Fetch failed for ' + url);
+        const data = await res.json() as any;
+        if (!entry.active) return;
+
+        const payload = (entry.key && data[entry.key] !== undefined) ? data[entry.key] : data;
+        entry.lastData = payload as T;
+        entry.subscribers.forEach((subscriber) => {
+          try {
+            subscriber(payload as T);
+          } catch (subscriberError) {
+            console.warn('Polling subscriber error on ' + url + ':', subscriberError);
+          }
+        });
+      } catch (err) {
+        if (entry.active) console.warn('Polling error on ' + url + ':', err);
+      } finally {
+        if (entry) entry.inFlight = false;
+        if (entry && entry.active && entry.subscribers.size > 0) {
+          entry.timer = setTimeout(poll, entry.intervalMs);
+        }
       }
-    } catch (err) {
-      if (active) console.warn('Polling error on ' + url + ':', err);
-    } finally {
-      if (active) {
-        timer = setTimeout(poll, intervalMs);
-      }
-    }
-  };
+    };
 
-  void poll();
+    void poll();
+  }
+
+  entry.subscribers.add(callback);
+
+  if (entry.lastData !== undefined) {
+    callback(entry.lastData);
+  }
 
   return () => {
-    active = false;
-    if (timer) clearTimeout(timer);
+    const current = sharedPollers.get(url) as SharedPollerEntry<T> | undefined;
+    if (!current) return;
+    current.subscribers.delete(callback);
+    if (current.subscribers.size === 0) {
+      current.active = false;
+      if (current.timer) clearTimeout(current.timer);
+      sharedPollers.delete(url);
+    }
   };
 }
 
