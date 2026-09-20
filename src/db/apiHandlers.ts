@@ -65,9 +65,18 @@ export async function handleApiRequest(
     return { status: 200, json: { user } };
   }
 
-  // GET ALL USERS
+  // GET ONE USER (used for session restore)
+  const userIdMatch = path.match(/^\/api\/users\/([^/]+)$/);
+  if (userIdMatch && method === 'GET') {
+    const userId = decodeURIComponent(userIdMatch[1]);
+    const user = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users WHERE id = ?').bind(userId).first();
+    if (!user) return { status: 404, json: { error: 'User profile not found.' } };
+    return { status: 200, json: user };
+  }
+
+  // GET ALL USERS - return only fields needed by the UI, never password data
   if (path === '/api/users' && method === 'GET') {
-    const { results: users } = await db.prepare('SELECT * FROM users').bind().all();
+    const { results: users } = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all();
     return { status: 200, json: users };
   }
 
