@@ -14,6 +14,33 @@ const schema = [
 `CREATE TABLE IF NOT EXISTS financialRecords (id TEXT PRIMARY KEY,userId TEXT NOT NULL,userName TEXT NOT NULL,leadId TEXT NOT NULL,leadName TEXT NOT NULL,action TEXT NOT NULL,amount REAL NOT NULL,currency TEXT NOT NULL,timestamp TEXT NOT NULL,earningType TEXT NOT NULL,status TEXT NOT NULL,notes TEXT,overriddenBy TEXT,overriddenAt TEXT,originalAmount REAL,isReversed INTEGER DEFAULT 0)`
 ];
 
+const requiredColumns: Record<string, string[]> = {
+  users: ['id','email','displayName','role','status','avatarUrl','phone','bio','storedPassword','createdAt'],
+  leads: ['id','name','contactPerson','phone','email','description','category','industry','city','province','country','address','website','existingWebsiteStatus','googleBusinessUrl','sourceUrl','sourceId','notes','source','createdMethod','stage','priority','quality','createdBy','createdByName','ownerId','ownerName','templateUrl','previewUrl','workingUrl','githubUrl','productionNotes','deletedAt','projectDomainName','createdAt','updatedAt','chatgptPackageJson','lastActivityAt','lastOutreachAt','lastOutreachChannel','outreachCount','linkCreatorId','linkCreatorName','linkCreatedAt','messageSenderId','messageSenderName','messageSentAt','linkBonusAwarded','messageBonusAwarded','isDealClosed','closedAt','clientPrice','currency'],
+  contacts: ['id','leadId','type','value','normalizedValue','contactPerson','position','createdAt'],
+  channels: ['id','leadId','channel','detailValue','createdAt'],
+  tasks: ['id','leadId','leadName','leadStage','taskTypeId','taskTypeKey','taskTypeName','status','createdBy','createdByName','assignedTo','assignedToName','rateValue','dueDate','startedAt','completedAt','blockReason','notes','version','createdAt'],
+  taskTypes: ['id','key','name','description','defaultRate','active'],
+  outreachAttempts: ['id','leadId','channel','actionType','targetRecipient','sentBy','sentByName','sentAt','messageUsed','status','responseType','responseNotes','nextAction','followUpDate'],
+  images: ['id','leadId','objectKey','url','filename','mimeType','fileSize','uploadedBy','uploadedByName','isPrimary','caption','createdAt'],
+  documents: ['id','leadId','objectKey','url','filename','mimeType','fileSize','uploadedBy','uploadedByName','documentType','description','createdAt'],
+  stageHistory: ['id','leadId','previousStage','newStage','changedBy','changedByName','reason','createdAt'],
+  leadNotes: ['id','leadId','authorId','authorName','content','createdAt'],
+  activities: ['id','userId','userName','action','entityType','entityId','entityName','metadataJson','timestamp'],
+  financialRecords: ['id','userId','userName','leadId','leadName','action','amount','currency','timestamp','earningType','status','notes','overriddenBy','overriddenAt','originalAmount','isReversed']
+};
+
 export async function ensureD1Schema(db: any) {
-  for (const sql of schema) await db.prepare(sql).run();
+  for (const sql of schema) {
+    const table = sql.match(/CREATE TABLE IF NOT EXISTS (\\w+)/i)?.[1];
+    if (table && requiredColumns[table]) {
+      const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+      const existing = new Set((result.results || []).map((row: any) => row.name));
+      const compatible = requiredColumns[table].every((column) => existing.has(column));
+      if (!compatible && existing.size > 0) {
+        await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
+      }
+    }
+    await db.prepare(sql).run();
+  }
 }
