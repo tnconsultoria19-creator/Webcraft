@@ -30,9 +30,26 @@ const requiredColumns: Record<string, string[]> = {
   financialRecords: ['id','userId','userName','leadId','leadName','action','amount','currency','timestamp','earningType','status','notes','overriddenBy','overriddenAt','originalAmount','isReversed']
 };
 
+const indexes = [
+  'CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)',
+  'CREATE INDEX IF NOT EXISTS idx_leads_deleted_updated ON leads(deletedAt, updatedAt)',
+  'CREATE INDEX IF NOT EXISTS idx_leads_owner ON leads(ownerId)',
+  'CREATE INDEX IF NOT EXISTS idx_leads_created_by ON leads(createdBy)',
+  'CREATE INDEX IF NOT EXISTS idx_contacts_lead_created ON contacts(leadId, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_channels_lead_created ON channels(leadId, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_tasks_lead_created ON tasks(leadId, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_tasks_status_assigned ON tasks(status, assignedTo, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_outreach_lead_sent ON outreachAttempts(leadId, sentAt)',
+  'CREATE INDEX IF NOT EXISTS idx_notes_lead_created ON leadNotes(leadId, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_images_lead_created ON images(leadId, createdAt)',
+  'CREATE INDEX IF NOT EXISTS idx_activities_timestamp ON activities(timestamp)',
+  'CREATE INDEX IF NOT EXISTS idx_activities_entity ON activities(entityType, entityId, timestamp)',
+  'CREATE INDEX IF NOT EXISTS idx_financial_user_timestamp ON financialRecords(userId, timestamp)'
+];
+
 export async function ensureD1Schema(db: any) {
   for (const sql of schema) {
-    const table = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i)?.[1];
+    const table = sql.match(/CREATE TABLE IF NOT EXISTS (\\w+)/i)?.[1];
     if (table && requiredColumns[table]) {
       const result = await db.prepare(`PRAGMA table_info(${table})`).all();
       const existing = new Set((result.results || []).map((row: any) => row.name));
@@ -41,6 +58,10 @@ export async function ensureD1Schema(db: any) {
         await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
       }
     }
+    await db.prepare(sql).run();
+  }
+
+  for (const sql of indexes) {
     await db.prepare(sql).run();
   }
 }
