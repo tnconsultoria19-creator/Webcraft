@@ -9,9 +9,23 @@ interface Env {
   ASSETS?: any;
 }
 
+// Initialize the D1 schema at most once per Worker isolate.
+// Running PRAGMA/CREATE checks on every request was adding unnecessary database work.
+let schemaReady: Promise<void> | null = null;
+
+function ensureSchemaOnce(db: any): Promise<void> {
+  if (!schemaReady) {
+    schemaReady = ensureD1Schema(db).catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  }
+  return schemaReady;
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
-    await ensureD1Schema(env.DB);
+    await ensureSchemaOnce(env.DB);
     const url = new URL(request.url);
     const { pathname, search } = url;
 
