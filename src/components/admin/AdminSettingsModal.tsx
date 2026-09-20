@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { User as UserType, FinancialRecord } from '../../types';
 import {
-  subscribeToUsers,
+  subscribeToAdminUsers,
   createTeamMemberAccount,
   updateUserRoleOrStatus,
   updateUserProfileByAdmin,
@@ -101,7 +101,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const unsubUsers = subscribeToUsers((uList) => {
+    const unsubUsers = subscribeToAdminUsers(currentUser.id, (uList) => {
       setUsersList(uList);
       setIsLoading(false);
     });
