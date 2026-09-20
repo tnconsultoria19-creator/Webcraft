@@ -47,12 +47,7 @@ import { ConfirmModal } from '../common/ConfirmModal';
 import { DirectOutreachBar } from './DirectOutreachBar';
 import { RecordOutreachModal } from './RecordOutreachModal';
 import {
-  subscribeToLeads,
-  subscribeToTasks,
-  subscribeToOutreach,
-  subscribeToUsers,
-  subscribeToLeadNotes,
-  subscribeToImages,
+  subscribeToLeadDetail,
   addLeadNoteInFirestore,
   updateLeadInFirestore,
   recordOutreachInFirestore,
@@ -296,43 +291,21 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    const unsubLeads = subscribeToLeads((leadList) => {
-      const found = leadList.find((l) => l.id === leadId);
-      if (found) {
-        setLead(found);
-        if (found.templateUrl) setTemplateUrl(found.templateUrl);
+    setIsLoading(true);
+    const unsubscribe = subscribeToLeadDetail(leadId, (data) => {
+      if (data?.lead) {
+        setLead(data.lead);
+        if (data.lead.templateUrl) setTemplateUrl(data.lead.templateUrl);
       }
+      setTasks(data?.tasks || []);
+      setOutreach(data?.outreach || []);
+      setNotes(data?.notes || []);
+      setImages(data?.images || []);
+      setUsers(data?.users || []);
       setIsLoading(false);
     });
 
-    const unsubTasks = subscribeToTasks((taskList) => {
-      setTasks(taskList.filter((t) => t.leadId === leadId));
-    });
-
-    const unsubOutreach = subscribeToOutreach((outList) => {
-      setOutreach(outList.filter((o) => o.leadId === leadId));
-    });
-
-    const unsubNotes = subscribeToLeadNotes(leadId, (noteList) => {
-      setNotes(noteList);
-    });
-
-    const unsubImages = subscribeToImages(leadId, (imageList) => {
-      setImages(imageList);
-    });
-
-    const unsubUsers = subscribeToUsers((userList) => {
-      setUsers(userList);
-    });
-
-    return () => {
-      unsubLeads();
-      unsubTasks();
-      unsubOutreach();
-      unsubNotes();
-      unsubImages();
-      unsubUsers();
-    };
+    return () => unsubscribe();
   }, [leadId]);
 
   // Paste handler for pasting images from clipboard
