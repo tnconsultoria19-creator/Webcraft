@@ -283,7 +283,10 @@ export async function updateLeadInFirestore(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ leadId, updates, userId, userName })
   });
-  if (!res.ok) throw new Error('Failed to update lead');
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error((errorBody as any)?.error || 'Failed to update lead');
+  }
 }
 
 export async function grabTaskAtomic(taskId: string, userId: string, userName: string): Promise<{ success: boolean; message: string; task?: Task }> {
