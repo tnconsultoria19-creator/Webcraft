@@ -18,8 +18,8 @@ import {
 } from 'lucide-react';
 import { User, Lead, Task } from '../../types';
 import { formatCurrency, getStageLabel } from '../../lib/utils';
-import { subscribeToTasks, subscribeToLeads, subscribeToFinancialRecords } from '../../lib/firestoreService';
-import { matchLeadComprehensive, findLeadDuplicates, LeadDuplicateReport } from '../../lib/searchUtils';
+import { subscribeToFinancialRecords } from '../../lib/firestoreService';
+import { matchLeadComprehensive, LeadDuplicateReport } from '../../lib/searchUtils';
 
 interface HeaderProps {
   currentUser: User;
@@ -32,6 +32,9 @@ interface HeaderProps {
   title?: string;
   onToggleSidebar?: () => void;
   onLogout?: () => void;
+  leads: Lead[];
+  tasks: Task[];
+  duplicateReports: Map<string, LeadDuplicateReport>;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,25 +47,27 @@ export const Header: React.FC<HeaderProps> = ({
   onGoHome,
   title = 'Dashboard',
   onToggleSidebar,
-  onLogout
+  onLogout,
+  leads,
+  tasks,
+  duplicateReports
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [allLeads, setAllLeads] = useState<Lead[]>([]);
-  const [searchResults, setSearchResults] = useState<{ lead: Lead; dupReport: LeadDuplicateReport }[]>([]);
+    const [searchResults, setSearchResults] = useState<{ lead: Lead; dupReport: LeadDuplicateReport }[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [todayEarnings, setTodayEarnings] = useState<number>(0);
   const [completedTodayCount, setCompletedTodayCount] = useState<number>(0);
 
   const totalDuplicatesCount = useMemo(() => {
-    return allLeads.filter((l) => findLeadDuplicates(l, allLeads).hasDuplicates).length;
-  }, [allLeads]);
+    let count = 0;
+    duplicateReports.forEach((report) => {
+      if (report.hasDuplicates) count += 1;
+    });
+    return count;
+  }, [duplicateReports]);
 
   useEffect(() => {
-    const unsubLeads = subscribeToLeads((leads) => {
-      setAllLeads(leads);
-    });
-
-    const unsubFinance = subscribeToFinancialRecords((records) => {
+      const unsubFinance = subscribeToFinancialRecords((records) => {
       const todayStr = new Date().toISOString().split('T')[0];
       const myTodayEarned = records.filter(
         (r) => r.userId === currentUser.id && r.status === 'earned' && r.timestamp?.startsWith(todayStr)
@@ -74,23 +79,8 @@ export const Header: React.FC<HeaderProps> = ({
       }
     });
 
-    const unsubTasks = subscribeToTasks((tasks) => {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const myTodayCompleted = tasks.filter((t) => {
-        if (t.assignedTo !== currentUser.id && t.createdBy !== currentUser.id) return false;
-        if (t.status !== 'completed' || !t.completedAt) return false;
-        return t.completedAt.startsWith(todayStr);
-      });
-
-      const totalToday = myTodayCompleted.reduce((sum, t) => sum + (t.rateValue ?? 0), 0);
-      setTodayEarnings((prev) => (prev > 0 ? prev : totalToday));
-      setCompletedTodayCount((prev) => (prev > 0 ? prev : myTodayCompleted.length));
-    });
-
-    return () => {
-      unsubLeads();
+      return () => {
       unsubFinance();
-      unsubTasks();
     };
   }, [currentUser.id]);
 
@@ -103,15 +93,15 @@ export const Header: React.FC<HeaderProps> = ({
 
     const term = searchTerm.trim();
     const matched = allLeads
-      .filter((l) => matchLeadComprehensive(l, term, allLeads))
+      .filter((l) => matchLeadComprehensive(l, term, leads))
       .map((l) => ({
         lead: l,
-        dupReport: findLeadDuplicates(l, allLeads)
+        dupReport: duplicateReports.get(l.id)!
       }));
 
     setSearchResults(matched);
     setShowSearchResults(true);
-  }, [searchTerm, allLeads]);
+  }, [searchTerm, leads, duplicateReports]);
 
   const handleClearSearch = () => {
     setSearchTerm('');
