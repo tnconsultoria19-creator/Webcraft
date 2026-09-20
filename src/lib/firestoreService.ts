@@ -141,6 +141,19 @@ export function subscribeToLeads(callback: (leads: Lead[]) => void) {
   return createPoller('/api/leads', callback, 8000, 'leads');
 }
 
+export interface LeadDetailPayload {
+  lead: Lead;
+  tasks: Task[];
+  outreach: OutreachAttempt[];
+  notes: LeadNote[];
+  images: ImageAsset[];
+  users: User[];
+}
+
+export function subscribeToLeadDetail(leadId: string, callback: (data: LeadDetailPayload) => void) {
+  return createPoller(`/api/leads/${encodeURIComponent(leadId)}/detail`, callback, 8000);
+}
+
 export function subscribeToTasks(callback: (tasks: Task[]) => void) {
   return createPoller('/api/tasks', callback, 8000);
 }
