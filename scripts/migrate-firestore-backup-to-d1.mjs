@@ -58,35 +58,8 @@ const activities = docs('activities.json');
 
 const lines = [
   '-- WebCraft Studio Firestore -> Cloudflare D1 migration',
-  '-- Generated from the complete Firestore backup files.',
-  '-- Rebuild the current D1 schema before importing historical data.',
-  '-- The existing legacy D1 schema is incompatible with the current WebCraft schema.',
-  'DROP TABLE IF EXISTS activities;',
-  'DROP TABLE IF EXISTS contacts;',
-  'DROP TABLE IF EXISTS channels;',
-  'DROP TABLE IF EXISTS tasks;',
-  'DROP TABLE IF EXISTS taskTypes;',
-  'DROP TABLE IF EXISTS outreachAttempts;',
-  'DROP TABLE IF EXISTS images;',
-  'DROP TABLE IF EXISTS documents;',
-  'DROP TABLE IF EXISTS stageHistory;',
-  'DROP TABLE IF EXISTS leadNotes;',
-  'DROP TABLE IF EXISTS financialRecords;',
-  'DROP TABLE IF EXISTS leads;',
-  'DROP TABLE IF EXISTS users;',
-  `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,displayName TEXT NOT NULL,role TEXT NOT NULL,status TEXT NOT NULL,avatarUrl TEXT,phone TEXT,bio TEXT,storedPassword TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS leads (id TEXT PRIMARY KEY,name TEXT NOT NULL,contactPerson TEXT,phone TEXT,email TEXT,description TEXT,category TEXT,industry TEXT,city TEXT,province TEXT,country TEXT,address TEXT,website TEXT,existingWebsiteStatus TEXT,googleBusinessUrl TEXT,sourceUrl TEXT,sourceId TEXT,notes TEXT,source TEXT NOT NULL,createdMethod TEXT,stage TEXT NOT NULL,priority TEXT NOT NULL,quality TEXT NOT NULL,createdBy TEXT NOT NULL,createdByName TEXT,ownerId TEXT NOT NULL,ownerName TEXT,templateUrl TEXT,previewUrl TEXT,workingUrl TEXT,githubUrl TEXT,productionNotes TEXT,deletedAt TEXT,projectDomainName TEXT,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL,chatgptPackageJson TEXT,lastActivityAt TEXT,lastOutreachAt TEXT,lastOutreachChannel TEXT,outreachCount INTEGER DEFAULT 0,linkCreatorId TEXT,linkCreatorName TEXT,linkCreatedAt TEXT,messageSenderId TEXT,messageSenderName TEXT,messageSentAt TEXT,linkBonusAwarded INTEGER DEFAULT 0,messageBonusAwarded INTEGER DEFAULT 0,isDealClosed INTEGER DEFAULT 0,closedAt TEXT,clientPrice REAL,currency TEXT)`,
-  `CREATE TABLE IF NOT EXISTS contacts (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,type TEXT NOT NULL,value TEXT NOT NULL,normalizedValue TEXT NOT NULL,contactPerson TEXT,position TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS channels (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,channel TEXT NOT NULL,detailValue TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,leadName TEXT,leadStage TEXT,taskTypeId TEXT NOT NULL,taskTypeKey TEXT NOT NULL,taskTypeName TEXT NOT NULL,status TEXT NOT NULL,createdBy TEXT NOT NULL,createdByName TEXT,assignedTo TEXT,assignedToName TEXT,rateValue REAL NOT NULL,dueDate TEXT,startedAt TEXT,completedAt TEXT,blockReason TEXT,notes TEXT,version INTEGER DEFAULT 1,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS taskTypes (id TEXT PRIMARY KEY,key TEXT UNIQUE NOT NULL,name TEXT NOT NULL,description TEXT,defaultRate REAL NOT NULL,active INTEGER DEFAULT 1)`,
-  `CREATE TABLE IF NOT EXISTS outreachAttempts (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,channel TEXT NOT NULL,actionType TEXT,targetRecipient TEXT,sentBy TEXT NOT NULL,sentByName TEXT,sentAt TEXT NOT NULL,messageUsed TEXT,status TEXT NOT NULL,responseType TEXT,responseNotes TEXT,nextAction TEXT,followUpDate TEXT)`,
-  `CREATE TABLE IF NOT EXISTS images (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,objectKey TEXT NOT NULL,url TEXT NOT NULL,filename TEXT NOT NULL,mimeType TEXT NOT NULL,fileSize INTEGER NOT NULL,uploadedBy TEXT NOT NULL,uploadedByName TEXT,isPrimary INTEGER DEFAULT 0,caption TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS documents (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,objectKey TEXT NOT NULL,url TEXT NOT NULL,filename TEXT NOT NULL,mimeType TEXT NOT NULL,fileSize INTEGER NOT NULL,uploadedBy TEXT NOT NULL,uploadedByName TEXT,documentType TEXT,description TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS stageHistory (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,previousStage TEXT NOT NULL,newStage TEXT NOT NULL,changedBy TEXT NOT NULL,changedByName TEXT,reason TEXT,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS leadNotes (id TEXT PRIMARY KEY,leadId TEXT NOT NULL,authorId TEXT NOT NULL,authorName TEXT,content TEXT NOT NULL,createdAt TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS activities (id TEXT PRIMARY KEY,userId TEXT NOT NULL,userName TEXT,action TEXT NOT NULL,entityType TEXT NOT NULL,entityId TEXT NOT NULL,entityName TEXT,metadataJson TEXT,timestamp TEXT NOT NULL)`,
-  `CREATE TABLE IF NOT EXISTS financialRecords (id TEXT PRIMARY KEY,userId TEXT NOT NULL,userName TEXT NOT NULL,leadId TEXT NOT NULL,leadName TEXT NOT NULL,action TEXT NOT NULL,amount REAL NOT NULL,currency TEXT NOT NULL,timestamp TEXT NOT NULL,earningType TEXT NOT NULL,status TEXT NOT NULL,notes TEXT,overriddenBy TEXT,overriddenAt TEXT,originalAmount REAL,isReversed INTEGER DEFAULT 0)`, ];
+  '-- Generated from the complete Firestore backup files.'
+];
 
 for (const u of users) {
   lines.push(insert('users',
