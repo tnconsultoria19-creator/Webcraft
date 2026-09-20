@@ -71,7 +71,19 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
       return;
     }
 
-    setParsedData(result.data);
+    setParsedData((previous) => {
+      if (!previous) return result.data!;
+      return {
+        geminiInstruction: result.data!.geminiInstruction || previous.geminiInstruction,
+        rawClientProfileJson: result.data!.rawClientProfileJson || previous.rawClientProfileJson,
+        clientProfile:
+          Object.keys(result.data!.clientProfile || {}).length > 0
+            ? { ...previous.clientProfile, ...result.data!.clientProfile }
+            : previous.clientProfile,
+        businessName: result.data!.businessName || previous.businessName,
+        projectDomainName: result.data!.projectDomainName || previous.projectDomainName
+      };
+    });
   };
 
   // CLIPBOARD COPIES
