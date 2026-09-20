@@ -149,6 +149,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   const [editLeadJson, setEditLeadJson] = useState('');
   const [jsonParseError, setJsonParseError] = useState('');
   const [editLeadName, setEditLeadName] = useState('');
+  const [editLeadContactPerson, setEditLeadContactPerson] = useState('');
+  const [editLeadPhone, setEditLeadPhone] = useState('');
+  const [editLeadEmail, setEditLeadEmail] = useState('');
   const [editLeadCategory, setEditLeadCategory] = useState('');
   const [editLeadSource, setEditLeadSource] = useState('');
   const [editLeadSourceUrl, setEditLeadSourceUrl] = useState('');
@@ -168,6 +171,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   const handleOpenEditLead = () => {
     if (!lead) return;
     setEditLeadName(lead.name || '');
+    setEditLeadContactPerson(lead.contactPerson || '');
+    setEditLeadPhone(lead.phone || '');
+    setEditLeadEmail(lead.email || '');
     setEditLeadCategory(lead.category || '');
     setEditLeadSource(lead.source || 'Gumtree');
     setEditLeadSourceUrl(lead.sourceUrl || '');
@@ -185,6 +191,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
     const jsonObj = {
       name: lead.name || '',
+      contactPerson: lead.contactPerson || '',
+      phone: lead.phone || '',
+      email: lead.email || '',
       category: lead.category || '',
       source: lead.source || 'Gumtree',
       sourceUrl: lead.sourceUrl || '',
@@ -233,6 +242,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
         const updatedFields: Partial<Lead> = {
           name: parsed.name.trim(),
+          contactPerson: parsed.contactPerson || '',
+          phone: parsed.phone || '',
+          email: parsed.email || '',
           category: parsed.category || '',
           source: parsed.source || 'Gumtree',
           sourceUrl: cleanUrl(parsed.sourceUrl) || parsed.sourceUrl || '',
@@ -263,6 +275,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
           lead.id,
           {
             name: editLeadName.trim(),
+            contactPerson: editLeadContactPerson.trim(),
+            phone: editLeadPhone.trim(),
+            email: editLeadEmail.trim(),
             category: editLeadCategory.trim(),
             source: editLeadSource.trim(),
             sourceUrl: cleanUrl(editLeadSourceUrl) || editLeadSourceUrl.trim(),
@@ -2528,6 +2543,39 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                         value={editLeadName}
                         onChange={(e) => setEditLeadName(e.target.value)}
                         className="w-full bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] font-semibold rounded-xl px-3 py-2 focus:outline-none focus:border-[#245F6B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[#292A29] font-semibold mb-1">Owner / Contact Person</label>
+                      <input
+                        type="text"
+                        value={editLeadContactPerson}
+                        onChange={(e) => setEditLeadContactPerson(e.target.value)}
+                        placeholder="Owner or main contact"
+                        className="w-full bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-xl px-3 py-2 focus:outline-none focus:border-[#245F6B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[#292A29] font-semibold mb-1">Phone</label>
+                      <input
+                        type="text"
+                        value={editLeadPhone}
+                        onChange={(e) => setEditLeadPhone(e.target.value)}
+                        placeholder="+27 ..."
+                        className="w-full bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-xl px-3 py-2 focus:outline-none focus:border-[#245F6B]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[#292A29] font-semibold mb-1">Email</label>
+                      <input
+                        type="email"
+                        value={editLeadEmail}
+                        onChange={(e) => setEditLeadEmail(e.target.value)}
+                        placeholder="business@example.com"
+                        className="w-full bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-xl px-3 py-2 focus:outline-none focus:border-[#245F6B]"
                       />
                     </div>
 
