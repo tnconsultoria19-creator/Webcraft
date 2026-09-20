@@ -861,7 +861,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
     setIsPostingComment(true);
     try {
-      await addLeadNoteInFirestore(lead.id, newComment, currentUser.id, currentUser.displayName);
+      await addLeadNoteInFirestore(lead.id, currentUser.id, currentUser.displayName, newComment);
       setNewComment('');
     } catch (err: any) {
       alert(err.message || 'Failed to post comment');
