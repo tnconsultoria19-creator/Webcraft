@@ -703,7 +703,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                                 {rec.userName || 'Agent'}
                               </span>
                               <span className="text-[#68645D]">·</span>
-                              <span className="text-[#68645D] text-xs">{rec.description}</span>
+                              <span className="text-[#68645D] text-xs">{rec.notes || rec.action}</span>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 isEarned
                                   ? 'bg-[#4F765C]/15 text-[#4F765C]'
@@ -717,11 +717,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                             <div className="text-[10px] text-[#969188] mt-0.5 flex items-center gap-2">
                               <span>Lead: {rec.leadName || rec.leadId || 'General'}</span>
                               <span>•</span>
-                              <span>Type: {rec.type}</span>
+                              <span>Type: {rec.action}</span>
                               <span>•</span>
                               <span>{rec.timestamp ? formatDateTime(rec.timestamp) : 'Recent'}</span>
-                              {rec.reversedReason && (
-                                <span className="text-[#A65B55] font-semibold">(Reversed: {rec.reversedReason})</span>
+                              {rec.notes && (
+                                <span className="text-[#A65B55] font-semibold">(Reversed: {rec.notes})</span>
                               )}
                             </div>
                           </div>
