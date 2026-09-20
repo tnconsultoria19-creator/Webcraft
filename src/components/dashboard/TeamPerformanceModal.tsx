@@ -53,9 +53,9 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
     const totalEarned = earnedRecords.reduce((sum, r) => sum + (r.amount || 0), 0);
     const totalPotential = potentialRecords.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-    const linksCreatedCount = earnedRecords.filter((r) => r.type === 'LINK_CREATED').length;
-    const messagesSentCount = earnedRecords.filter((r) => r.type === 'MESSAGE_SENT').length;
-    const dealBonusCount = earnedRecords.filter((r) => r.type === 'SUCCESS_BONUS').length;
+    const linksCreatedCount = earnedRecords.filter((r) => r.action === 'LINK_CREATED').length;
+    const messagesSentCount = earnedRecords.filter((r) => r.action === 'MESSAGE_SENT').length;
+    const dealBonusCount = earnedRecords.filter((r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS').length;
 
     const userCompletedTasks = tasks.filter(
       (t) => (t.assignedTo === u.id || t.createdBy === u.id) && t.status === 'completed'
