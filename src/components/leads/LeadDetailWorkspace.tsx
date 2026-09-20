@@ -80,6 +80,7 @@ import { SavedPackageModal } from '../processor/SavedPackageModal';
 interface LeadDetailWorkspaceProps {
   leadId: string;
   currentUser: User;
+  initialLead?: Lead;
   onClose: () => void;
   onLeadUpdated: () => void;
 }
@@ -87,17 +88,18 @@ interface LeadDetailWorkspaceProps {
 export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   leadId,
   currentUser,
+  initialLead,
   onClose,
   onLeadUpdated
 }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'template' | 'outreach' | 'tasks' | 'images'>('overview');
-  const [lead, setLead] = useState<Lead | null>(null);
+  const [lead, setLead] = useState<Lead | null>(initialLead || null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [outreach, setOutreach] = useState<OutreachAttempt[]>([]);
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [images, setImages] = useState<ImageAsset[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!initialLead);
 
   // Outreach Modal State
   const [isRecordOutreachModalOpen, setIsRecordOutreachModalOpen] = useState(false);
@@ -291,7 +293,13 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   };
 
   useEffect(() => {
-    setIsLoading(true);
+    if (initialLead) {
+      setLead(initialLead);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
+
     const unsubscribe = subscribeToLeadDetail(leadId, (data) => {
       if (data?.lead) {
         setLead(data.lead);
