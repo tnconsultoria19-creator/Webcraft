@@ -230,8 +230,9 @@ INSERT OR IGNORE INTO taskTypes (id, key, name, description, defaultRate, active
 INSERT OR IGNORE INTO users (id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt) VALUES
 ('usr_b2xpc2JlbEBnbWFpbC5jb20', 'olisbel@gmail.com', 'olisbel', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Lead Platform Developer & Administrator', '19921108626Op@', '2026-08-12T08:02:42.929Z'),
 ('usr_YWRtaW5Ad2ViY3JhZnQuY29t', 'admin@webcraft.com', 'admin', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'System Admin Account', 'password123', '2026-08-14T20:46:23.839Z'),
-('usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t', 'lhudyquiala@gmail.com', 'Ludmila Domingos Quiala', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Operations & Lead Specialist', NULL, '2026-09-17T12:36:50.033Z'),
-('usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ', 'cesarfatimata66@gmail.com', 'Silvana Camara ', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Template & Outreach Specialist', NULL, '2026-08-17T19:15:05.888Z');
+('usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t', 'lhudyquiala@gmail.com', 'Ludmila Domingos Quiala', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Operations & Lead Specialist', 'ludmila2026', '2026-09-17T12:36:50.033Z'),
+('usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ', 'cesarfatimata66@gmail.com', 'Silvana Camara ', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Template & Outreach Specialist', 'silvana2026', '2026-08-17T19:15:05.888Z'),
+('usr_dG5jb25zdWx0b3JpYTE5QGdtYWlsLmNvbQ', 'tnconsultoria19@gmail.com', 'TN Consultoria', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'System Administrator', 'admin2026', '2026-08-12T08:00:00.000Z');
 `;
 
 async function getLocalDatabase() {

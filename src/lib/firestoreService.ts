@@ -177,6 +177,22 @@ export async function updateUserProfileByAdmin(
   if (!res.ok) throw new Error('Failed to update profile by admin');
 }
 
+export async function adminResetUserPassword(
+  adminUser: User,
+  targetUid: string,
+  newPassword: string
+): Promise<void> {
+  const res = await fetch('/api/users/reset-password-admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ adminUserId: adminUser.id, targetUid, newPassword })
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as any)?.error || 'Failed to reset password');
+  }
+}
+
 export async function updateOwnUserProfile(
   userUid: string,
   updates: Partial<User>

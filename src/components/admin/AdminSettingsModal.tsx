@@ -17,7 +17,9 @@ import {
   Undo2,
   PlusCircle,
   AlertTriangle,
-  CheckCircle2
+  CheckCircle2,
+  Copy,
+  Check
 } from 'lucide-react';
 import { User as UserType, FinancialRecord } from '../../types';
 import {
@@ -26,6 +28,7 @@ import {
   createTeamMemberAccount,
   updateUserRoleOrStatus,
   updateUserProfileByAdmin,
+  adminResetUserPassword,
   deleteUserProfile,
   subscribeToFinancialRecords,
   adminReverseFinancialRecord,
@@ -51,6 +54,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
+  const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
 
   // New User Form State
   const [newEmail, setNewEmail] = useState('');
@@ -104,21 +108,48 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     if (!isOpen) return;
 
     const mergeUsers = (uList: UserType[]) => {
+      if (!Array.isArray(uList)) return;
       setUsersList((previous) => {
-        const previousById = new Map(previous.map((user) => [user.id, user]));
-        return uList.map((user) => ({
-          ...(previousById.get(user.id) || {}),
-          ...user
-        }));
+        const previousById = new Map<string, UserType>((previous || []).map((u) => [u.id, u]));
+        return uList.map((user) => {
+          const prev = previousById.get(user.id);
+          const preservedPassword =
+            user.storedPassword !== undefined && user.storedPassword !== null && user.storedPassword !== ''
+              ? user.storedPassword
+              : prev?.storedPassword;
+
+          const merged: UserType = {
+            id: user.id,
+            email: user.email,
+            displayName: user.displayName,
+            role: user.role,
+            status: user.status,
+            createdAt: user.createdAt,
+            avatarUrl: user.avatarUrl ?? prev?.avatarUrl,
+            phone: user.phone ?? prev?.phone,
+            bio: user.bio ?? prev?.bio,
+            storedPassword: preservedPassword
+          };
+          return merged;
+        });
       });
       setUsersError(null);
       setIsLoading(false);
     };
 
-    // Load the safe team list first so the accounts are visible even if
-    // the admin credential endpoint needs a role refresh.
-    const unsubSafeUsers = subscribeToUsers(mergeUsers);
-    const unsubUsers = subscribeToAdminUsers(currentUser.id, mergeUsers);
+    // First subscribe to admin endpoint which has the stored credentials
+    const unsubUsers = subscribeToAdminUsers(currentUser.id, (adminUsers) => {
+      if (Array.isArray(adminUsers) && adminUsers.length > 0) {
+        mergeUsers(adminUsers);
+      }
+    });
+
+    // Also subscribe to public endpoint as baseline
+    const unsubSafeUsers = subscribeToUsers((safeUsers) => {
+      if (Array.isArray(safeUsers) && safeUsers.length > 0) {
+        mergeUsers(safeUsers);
+      }
+    });
 
     const unsubFinance = subscribeToFinancialRecords((records) => {
       setFinancialRecords(records);
@@ -177,6 +208,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
 
     setIsSavingEdit(true);
     try {
+      const newPasswordValue = editPassword.trim() || undefined;
       await updateUserProfileByAdmin(currentUser, editingUser.id, {
         displayName: editName.trim(),
         email: editEmail.trim(),
@@ -185,8 +217,26 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
         status: editStatus,
         bio: editBio.trim(),
         avatarUrl: editAvatarUrl.trim(),
-        storedPassword: editPassword.trim() || undefined
+        storedPassword: newPasswordValue
       });
+
+      setUsersList((prev) =>
+        prev.map((u) =>
+          u.id === editingUser.id
+            ? {
+                ...u,
+                displayName: editName.trim(),
+                email: editEmail.trim(),
+                phone: editPhone.trim(),
+                role: editRole,
+                status: editStatus,
+                bio: editBio.trim(),
+                avatarUrl: editAvatarUrl.trim(),
+                storedPassword: newPasswordValue ?? u.storedPassword
+              }
+            : u
+        )
+      );
 
       setStatusMsg({ type: 'success', text: `Updated profile for ${editName} successfully!` });
       setEditingUser(null);
@@ -194,6 +244,21 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       alert(err.message || 'Failed to update employee profile');
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const handleQuickResetPassword = async (targetUser: UserType) => {
+    const newPass = prompt(`Enter new password for ${targetUser.displayName} (${targetUser.email}):`, targetUser.storedPassword || '');
+    if (!newPass || !newPass.trim()) return;
+
+    try {
+      await adminResetUserPassword(currentUser, targetUser.id, newPass.trim());
+      setUsersList((prev) =>
+        prev.map((u) => (u.id === targetUser.id ? { ...u, storedPassword: newPass.trim() } : u))
+      );
+      setStatusMsg({ type: 'success', text: `Password updated for ${targetUser.displayName}!` });
+    } catch (err: any) {
+      alert(err.message || 'Failed to update password');
     }
   };
 
@@ -545,18 +610,51 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                           </div>
                           <div className="text-[11px] text-[#68645D] flex flex-wrap items-center gap-2 mt-0.5">
                             <span>{u.email} {u.phone && `• ${u.phone}`}</span>
-                            <span className="inline-flex items-center gap-1 bg-[#F0EDE5] text-[#292A29] border border-[#DDD8CE] px-2 py-0.5 rounded-md text-[10px]">
-                              <KeyRound className="w-3 h-3 text-[#245F6B]" />
-                              {u.storedPassword
-                                ? (showPasswordMap[u.id] ? u.storedPassword : '••••••••')
-                                : 'Password not stored'}
-                              {u.storedPassword && (
+                            <span className="inline-flex items-center gap-1.5 bg-[#F0EDE5] text-[#292A29] border border-[#DDD8CE] px-2.5 py-1 rounded-lg text-[10px]">
+                              <KeyRound className="w-3 h-3 text-[#245F6B] shrink-0" />
+                              <span className="font-mono font-medium">
+                                {u.storedPassword
+                                  ? (showPasswordMap[u.id] ? u.storedPassword : '••••••••')
+                                  : 'Password not stored'}
+                              </span>
+                              {u.storedPassword ? (
+                                <span className="inline-flex items-center gap-1.5 ml-1 border-l border-[#DDD8CE] pl-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPasswordMap((prev) => ({ ...prev, [u.id]: !prev[u.id] }))}
+                                    className="text-[#245F6B] font-semibold hover:text-[#1E505A] cursor-pointer"
+                                  >
+                                    {showPasswordMap[u.id] ? 'Hide' : 'Show'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (u.storedPassword) {
+                                        navigator.clipboard.writeText(u.storedPassword);
+                                        setCopiedPasswordId(u.id);
+                                        setTimeout(() => setCopiedPasswordId(null), 2000);
+                                      }
+                                    }}
+                                    className="text-[#245F6B] hover:text-[#1E505A] cursor-pointer flex items-center gap-0.5"
+                                    title="Copy Password"
+                                  >
+                                    {copiedPasswordId === u.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuickResetPassword(u)}
+                                    className="text-[#969188] hover:text-[#245F6B] underline cursor-pointer"
+                                  >
+                                    Change
+                                  </button>
+                                </span>
+                              ) : (
                                 <button
                                   type="button"
-                                  onClick={() => setShowPasswordMap((prev) => ({ ...prev, [u.id]: !prev[u.id] }))}
-                                  className="ml-1 text-[#245F6B] underline text-[10px] cursor-pointer hover:text-[#1E505A]"
+                                  onClick={() => handleQuickResetPassword(u)}
+                                  className="text-[#245F6B] font-semibold hover:text-[#1E505A] underline ml-1 cursor-pointer"
                                 >
-                                  {showPasswordMap[u.id] ? 'Hide' : 'Show'}
+                                  Set Password
                                 </button>
                               )}
                             </span>
