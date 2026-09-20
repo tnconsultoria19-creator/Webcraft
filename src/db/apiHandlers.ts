@@ -224,12 +224,12 @@ export async function handleApiRequest(
       'CASE WHEN chatgptPackageJson IS NOT NULL AND chatgptPackageJson != \'\' THEN 1 ELSE 0 END AS hasChatgptPackage'
     ].join(', ');
 
-    const [leadResult, contactResult, channelResult, imageCountResult, taskCountResult] = await Promise.all([
-      db.prepare(`SELECT ${leadColumns} FROM leads WHERE deletedAt IS NULL ORDER BY updatedAt DESC`).bind().all(),
-      db.prepare('SELECT * FROM contacts WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind().all(),
-      db.prepare('SELECT * FROM channels WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind().all(),
-      db.prepare("SELECT leadId, COUNT(*) AS imagesCount FROM images WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind().all(),
-      db.prepare("SELECT leadId, COUNT(*) AS openTasksCount FROM tasks WHERE status NOT IN ('completed', 'cancelled') AND leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind().all()
+    const [leadResult, contactResult, channelResult, imageCountResult, taskCountResult] = await db.batch([
+      db.prepare(`SELECT ${leadColumns} FROM leads WHERE deletedAt IS NULL ORDER BY updatedAt DESC`).bind(),
+      db.prepare('SELECT * FROM contacts WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind(),
+      db.prepare('SELECT * FROM channels WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind(),
+      db.prepare("SELECT leadId, COUNT(*) AS imagesCount FROM images WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind(),
+      db.prepare("SELECT leadId, COUNT(*) AS openTasksCount FROM tasks WHERE status NOT IN ('completed', 'cancelled') AND leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind()
     ]);
 
     const contactsByLead = new Map<string, any[]>();
@@ -558,25 +558,26 @@ export async function handleApiRequest(
   const detailMatch = path.match(/^\/api\/leads\/([^/]+)\/detail$/);
   if (detailMatch && method === 'GET') {
     const leadId = detailMatch[1];
-    const [lead, contacts, channels, tasks, outreach, notes, images, users] = await Promise.all([
-      db.prepare('SELECT * FROM leads WHERE id = ? AND deletedAt IS NULL').bind(leadId).first(),
-      db.prepare('SELECT * FROM contacts WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId).all(),
-      db.prepare('SELECT * FROM channels WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId).all(),
-      db.prepare('SELECT * FROM tasks WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
-      db.prepare('SELECT * FROM outreachAttempts WHERE leadId = ? ORDER BY sentAt DESC').bind(leadId).all(),
-      db.prepare('SELECT * FROM leadNotes WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
-      db.prepare('SELECT * FROM images WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
-      db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all()
+    const [leadResult, contacts, channels, tasks, outreach, notes, images, users] = await db.batch([
+      db.prepare('SELECT * FROM leads WHERE id = ? AND deletedAt IS NULL').bind(leadId),
+      db.prepare('SELECT * FROM contacts WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId),
+      db.prepare('SELECT * FROM channels WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId),
+      db.prepare('SELECT * FROM tasks WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId),
+      db.prepare('SELECT * FROM outreachAttempts WHERE leadId = ? ORDER BY sentAt DESC').bind(leadId),
+      db.prepare('SELECT * FROM leadNotes WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId),
+      db.prepare('SELECT * FROM images WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId),
+      db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind()
     ]);
 
+    const lead = leadResult.results?.[0] || null;
     if (!lead) return { status: 404, json: { error: 'Lead not found.' } };
 
     const enrichedLead = {
       ...lead,
-      contacts: contacts.results.map((c: any) => ({ ...c, leadId })),
-      channels: channels.results,
-      imagesCount: images.results.length,
-      openTasksCount: tasks.results.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length,
+      contacts: (contacts.results || []).map((c: any) => ({ ...c, leadId })),
+      channels: channels.results || [],
+      imagesCount: (images.results || []).length,
+      openTasksCount: (tasks.results || []).filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length,
       chatgptPackage: (lead as any).chatgptPackageJson ? JSON.parse((lead as any).chatgptPackageJson) : undefined
     };
 
