@@ -752,6 +752,7 @@ export function App() {
         <LeadDetailWorkspace
           leadId={selectedLeadId}
           currentUser={currentUser}
+          initialLead={leads.find((l) => l.id === selectedLeadId)}
           onClose={() => setSelectedLeadId(null)}
           onLeadUpdated={() => {}}
         />
