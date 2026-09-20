@@ -336,8 +336,20 @@ export function App() {
   // Real-time data polling when user is logged in
   useEffect(() => {
     if (currentUser) {
+      // Load the pipeline directly once, then keep it refreshed by the shared poller.
+      // This guarantees the UI gets the API payload even if a poll subscription starts late.
+      void api.getLeads()
+        .then((res) => {
+          if (Array.isArray(res.leads)) {
+            setLeads(res.leads);
+          }
+        })
+        .catch((err) => {
+          console.warn('Could not load initial leads:', err);
+        });
+
       const unsubLeads = subscribeToLeads((updatedLeads) => {
-        if (updatedLeads) setLeads(updatedLeads);
+        if (Array.isArray(updatedLeads)) setLeads(updatedLeads);
       });
       const unsubUsers = subscribeToUsers((uList) => {
         if (uList) setTeamUsers(uList);
