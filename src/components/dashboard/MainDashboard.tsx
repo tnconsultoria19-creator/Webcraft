@@ -32,16 +32,14 @@ import { formatCurrency, formatDateTime, formatTimeAgo, formatExternalUrl } from
 import { getCountryByName } from '../../lib/currencyUtils';
 import { WorldClockBar } from '../layout/WorldClockBar';
 import { findLeadDuplicates } from '../../lib/searchUtils';
-import {
-  subscribeToLeads,
-  subscribeToTasks,
-  subscribeToOutreach,
-  subscribeToActivities,
-  updateLeadInFirestore
-} from '../../lib/firestoreService';
+import { updateLeadInFirestore } from '../../lib/firestoreService';
 
 interface MainDashboardProps {
   currentUser?: User;
+  leads: Lead[];
+  tasks: Task[];
+  outreach: OutreachAttempt[];
+  activities: ActivityLog[];
   onSelectLead: (leadId: string) => void;
   onOpenQuickAdd: () => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
@@ -49,34 +47,19 @@ interface MainDashboardProps {
 
 export const MainDashboard: React.FC<MainDashboardProps> = ({
   currentUser,
+  leads,
+  tasks,
+  outreach,
+  activities,
   onSelectLead,
   onOpenQuickAdd,
   onDeleteLead
 }) => {
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [outreach, setOutreach] = useState<OutreachAttempt[]>([]);
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<'Weekly' | 'Monthly'>('Weekly');
   const [barChartPeriod, setBarChartPeriod] = useState<'Monthly' | 'Quarterly'>('Monthly');
 
-  useEffect(() => {
-    const unsubLeads = subscribeToLeads((l) => {
-      setLeads(l);
-      setIsLoading(false);
-    });
-    const unsubTasks = subscribeToTasks((t) => setTasks(t));
-    const unsubOutreach = subscribeToOutreach((o) => setOutreach(o));
-    const unsubAct = subscribeToActivities((a) => setActivities(a));
 
-    return () => {
-      unsubLeads();
-      unsubTasks();
-      unsubOutreach();
-      unsubAct();
-    };
-  }, []);
 
   // Compute Metrics
   const totalLeads = leads.length;
