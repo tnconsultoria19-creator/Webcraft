@@ -459,7 +459,7 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
                       ? 'Saving...'
                       : savedLead
                       ? 'Saved to System'
-                      : 'SAVE CLIENT'}
+                      : 'SAVE CLIENT / CONTACT'}
                   </span>
                 </button>
               </div>
