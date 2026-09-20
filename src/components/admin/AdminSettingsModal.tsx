@@ -22,6 +22,7 @@ import {
 import { User as UserType, FinancialRecord } from '../../types';
 import {
   subscribeToAdminUsers,
+  subscribeToUsers,
   createTeamMemberAccount,
   updateUserRoleOrStatus,
   updateUserProfileByAdmin,
@@ -102,17 +103,29 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
-    const unsubUsers = subscribeToAdminUsers(currentUser.id, (uList) => {
-      setUsersList(uList);
+    const mergeUsers = (uList: UserType[]) => {
+      setUsersList((previous) => {
+        const previousById = new Map(previous.map((user) => [user.id, user]));
+        return uList.map((user) => ({
+          ...(previousById.get(user.id) || {}),
+          ...user
+        }));
+      });
       setUsersError(null);
       setIsLoading(false);
-    });
+    };
+
+    // Load the safe team list first so the accounts are visible even if
+    // the admin credential endpoint needs a role refresh.
+    const unsubSafeUsers = subscribeToUsers(mergeUsers);
+    const unsubUsers = subscribeToAdminUsers(currentUser.id, mergeUsers);
 
     const unsubFinance = subscribeToFinancialRecords((records) => {
       setFinancialRecords(records);
     });
 
     return () => {
+      unsubSafeUsers();
       unsubUsers();
       unsubFinance();
     };
