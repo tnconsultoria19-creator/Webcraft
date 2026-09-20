@@ -49,6 +49,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   const [usersList, setUsersList] = useState<UserType[]>([]);
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   // New User Form State
   const [newEmail, setNewEmail] = useState('');
@@ -103,6 +104,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
 
     const unsubUsers = subscribeToAdminUsers(currentUser.id, (uList) => {
       setUsersList(uList);
+      setUsersError(null);
       setIsLoading(false);
     });
 
@@ -114,7 +116,7 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       unsubUsers();
       unsubFinance();
     };
-  }, [isOpen]);
+  }, [isOpen, currentUser.id]);
 
   if (!isOpen) return null;
 
@@ -476,6 +478,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
               </div>
 
               {/* EXISTING USERS LIST */}
+              {usersError && (
+                <div className="p-3 rounded-xl bg-[#A65B55]/10 border border-[#A65B55]/30 text-[#A65B55] text-xs font-semibold">
+                  {usersError}
+                </div>
+              )}
               <div className="space-y-3">
                 <h3 className="font-bold text-sm text-[#292A29]">Existing Team Accounts ({usersList.length})</h3>
                 
