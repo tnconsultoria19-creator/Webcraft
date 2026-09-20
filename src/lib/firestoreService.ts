@@ -257,6 +257,7 @@ export async function createLeadInFirestore(
     createdMethod?: 'manual' | 'import';
     priority?: Lead['priority'];
     chatgptPackage?: Lead['chatgptPackage'];
+    projectDomainName?: string;
     contacts?: Array<{ type: any; value: string; contactPerson?: string; position?: string }>;
     channels?: string[];
   },
@@ -268,7 +269,10 @@ export async function createLeadInFirestore(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ data, userId, userName })
   });
-  if (!res.ok) throw new Error('Failed to create lead');
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error((errorBody as any)?.error || 'Failed to create lead');
+  }
   return await res.json() as any;
 }
 
