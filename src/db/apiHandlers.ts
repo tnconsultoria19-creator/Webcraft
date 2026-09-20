@@ -1,5 +1,6 @@
 import { getDb } from './sqliteDb';
 import { GoogleGenAI } from '@google/genai';
+import { DEFAULT_USERS, seedD1Defaults } from './d1Init';
 
 // Helper to generate IDs
 function genId(prefix: string): string {
@@ -16,12 +17,32 @@ export async function handleApiRequest(
   const path = (rawPath || '').split('?')[0];
   const db = await getDb(env);
 
+  // EXPLICIT RESEED ENDPOINT FOR ADMIN CREDENTIALS
+  if ((path === '/api/admin/reseed-team' || path === '/api/users/reseed-team') && (method === 'POST' || method === 'GET')) {
+    await seedD1Defaults(db);
+    const { results: users } = await db
+      .prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users ORDER BY displayName ASC')
+      .bind()
+      .all();
+    return { status: 200, json: { success: true, count: users.length, users } };
+  }
+
   // AUTH API
   if (path === '/api/auth/login' && method === 'POST') {
     const { email, password } = body;
     const cleanEmail = (email || '').trim().toLowerCase();
 
-    const user = await db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').bind(cleanEmail).first();
+    let user = await db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').bind(cleanEmail).first();
+    
+    // Auto-seed if user is missing but matches one of the 5 default team accounts
+    if (!user) {
+      const defaultUserMatch = DEFAULT_USERS.find((du) => du.email.toLowerCase() === cleanEmail);
+      if (defaultUserMatch) {
+        await seedD1Defaults(db);
+        user = await db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').bind(cleanEmail).first();
+      }
+    }
+
     if (!user) {
       return { status: 404, json: { error: `Account not found for ${cleanEmail}. Please register first.` } };
     }
@@ -31,12 +52,14 @@ export async function handleApiRequest(
     }
 
     // Flexible password matching for system accounts
-    const isDemoAdmin = cleanEmail === 'admin@webcraft.com' && (password === 'admin123' || password === 'password123');
-    const isOlisbel = cleanEmail === 'olisbel@gmail.com' && password === '19921108626Op@';
+    const isLudmila = cleanEmail === 'lhudyquiala@gmail.com' && (password === 'ludmila2026' || password === user.storedPassword);
+    const isSilvana = cleanEmail === 'cesarfatimata66@gmail.com' && (password === 'silvana2026' || password === user.storedPassword);
+    const isDemoAdmin = cleanEmail === 'admin@webcraft.com' && (password === 'admin123' || password === 'password123' || password === user.storedPassword);
+    const isOlisbel = cleanEmail === 'olisbel@gmail.com' && (password === '19921108626Op@' || password === user.storedPassword);
     const isTNAdmin = cleanEmail === 'tnconsultoria19@gmail.com' && (password === 'admin2026' || password === 'password123' || password === user.storedPassword);
     const isStandardMatch = user.storedPassword && user.storedPassword === password;
 
-    if (!isDemoAdmin && !isOlisbel && !isTNAdmin && !isStandardMatch) {
+    if (!isDemoAdmin && !isOlisbel && !isTNAdmin && !isLudmila && !isSilvana && !isStandardMatch) {
       return { status: 401, json: { error: 'Incorrect password. Please try again.' } };
     }
 
@@ -102,17 +125,31 @@ export async function handleApiRequest(
       return { status: 403, json: { error: 'Only administrators can access team credentials.', adminRole: admin?.role || null } };
     }
 
-    const { results: users } = await db
+    let { results: users } = await db
       .prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users ORDER BY displayName ASC')
       .bind()
       .all();
+
+    if (!users || users.length === 0) {
+      await seedD1Defaults(db);
+      const res = await db
+        .prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users ORDER BY displayName ASC')
+        .bind()
+        .all();
+      users = res.results || [];
+    }
 
     return { status: 200, json: users };
   }
 
   // GET ALL USERS - return only fields needed by the UI, never password data
   if (path === '/api/users' && method === 'GET') {
-    const { results: users } = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all();
+    let { results: users } = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all();
+    if (!users || users.length === 0) {
+      await seedD1Defaults(db);
+      const res = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all();
+      users = res.results || [];
+    }
     return { status: 200, json: users };
   }
 

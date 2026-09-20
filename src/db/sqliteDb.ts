@@ -233,6 +233,12 @@ INSERT OR IGNORE INTO users (id, email, displayName, role, status, avatarUrl, ph
 ('usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t', 'lhudyquiala@gmail.com', 'Ludmila Domingos Quiala', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Operations & Lead Specialist', 'ludmila2026', '2026-09-17T12:36:50.033Z'),
 ('usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ', 'cesarfatimata66@gmail.com', 'Silvana Camara ', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Template & Outreach Specialist', 'silvana2026', '2026-08-17T19:15:05.888Z'),
 ('usr_dG5jb25zdWx0b3JpYTE5QGdtYWlsLmNvbQ', 'tnconsultoria19@gmail.com', 'TN Consultoria', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'System Administrator', 'admin2026', '2026-08-12T08:00:00.000Z');
+
+UPDATE users SET storedPassword = '19921108626Op@', role = 'admin', status = 'active' WHERE LOWER(email) = 'olisbel@gmail.com' OR id = 'usr_b2xpc2JlbEBnbWFpbC5jb20';
+UPDATE users SET storedPassword = 'password123', role = 'admin', status = 'active' WHERE LOWER(email) = 'admin@webcraft.com' OR id = 'usr_YWRtaW5Ad2ViY3JhZnQuY29t';
+UPDATE users SET storedPassword = 'ludmila2026', role = 'member', status = 'active' WHERE LOWER(email) = 'lhudyquiala@gmail.com' OR id = 'usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t';
+UPDATE users SET storedPassword = 'silvana2026', role = 'member', status = 'active' WHERE LOWER(email) = 'cesarfatimata66@gmail.com' OR id = 'usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ';
+UPDATE users SET storedPassword = 'admin2026', role = 'admin', status = 'active' WHERE LOWER(email) = 'tnconsultoria19@gmail.com' OR id = 'usr_dG5jb25zdWx0b3JpYTE5QGdtYWlsLmNvbQ';
 `;
 
 async function getLocalDatabase() {

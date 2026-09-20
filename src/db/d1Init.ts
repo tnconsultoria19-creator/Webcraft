@@ -78,4 +78,124 @@ export async function ensureD1Schema(db: any) {
       // Index may already exist
     }
   }
+
+  // Seed default task types and users
+  await seedD1Defaults(db);
+}
+
+export const DEFAULT_USERS = [
+  {
+    id: 'usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t',
+    email: 'lhudyquiala@gmail.com',
+    displayName: 'Ludmila Domingos Quiala',
+    role: 'member',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: '+27 71 131 2594',
+    bio: 'Operations & Lead Specialist',
+    storedPassword: 'ludmila2026',
+    createdAt: '2026-09-17T12:36:50.033Z'
+  },
+  {
+    id: 'usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ',
+    email: 'cesarfatimata66@gmail.com',
+    displayName: 'Silvana Camara ',
+    role: 'member',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: null,
+    bio: 'Template & Outreach Specialist',
+    storedPassword: 'silvana2026',
+    createdAt: '2026-08-17T19:15:05.888Z'
+  },
+  {
+    id: 'usr_dG5jb25zdWx0b3JpYTE5QGdtYWlsLmNvbQ',
+    email: 'tnconsultoria19@gmail.com',
+    displayName: 'TN Consultoria',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: null,
+    bio: 'System Administrator',
+    storedPassword: 'admin2026',
+    createdAt: '2026-08-12T08:00:00.000Z'
+  },
+  {
+    id: 'usr_YWRtaW5Ad2ViY3JhZnQuY29t',
+    email: 'admin@webcraft.com',
+    displayName: 'admin',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: null,
+    bio: 'System Admin Account',
+    storedPassword: 'password123',
+    createdAt: '2026-08-14T20:46:23.839Z'
+  },
+  {
+    id: 'usr_b2xpc2JlbEBnbWFpbC5jb20',
+    email: 'olisbel@gmail.com',
+    displayName: 'olisbel',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: null,
+    bio: 'Lead Platform Developer & Administrator',
+    storedPassword: '19921108626Op@',
+    createdAt: '2026-08-12T08:02:42.929Z'
+  }
+];
+
+export const DEFAULT_TASK_TYPES = [
+  { id: 'tt-1', key: 'capture', name: 'Lead Research & Capture', description: 'Discovering business & recording verified contacts/images', defaultRate: 0, active: 1 },
+  { id: 'tt-2', key: 'template', name: 'Template Prototype Creation', description: 'Designing interactive website mockup for business preview', defaultRate: 1.0, active: 1 },
+  { id: 'tt-3', key: 'outreach', name: 'Initial Business Outreach', description: 'Reaching out via WhatsApp/Social DM/Email with mockup', defaultRate: 0.5, active: 1 },
+  { id: 'tt-4', key: 'followup', name: 'Client Negotiation & Follow-Up', description: 'Handling responses, answering queries, securing interest', defaultRate: 0, active: 1 },
+  { id: 'tt-5', key: 'qualification', name: 'Qualification & Discovery Call', description: 'Validating client budget & website requirements', defaultRate: 0, active: 1 },
+  { id: 'tt-6', key: 'onboarding', name: 'Client Contract & Deposit Onboarding', description: 'Finalizing pricing agreement and collecting brand assets', defaultRate: 0, active: 1 },
+  { id: 'tt-7', key: 'production', name: 'Final Website Launch & Deployment', description: 'Building domain deployment and custom features', defaultRate: 0, active: 1 }
+];
+
+export async function seedD1Defaults(db: any) {
+  // 1. Task Types
+  for (const tt of DEFAULT_TASK_TYPES) {
+    try {
+      await db.prepare(`
+        INSERT OR IGNORE INTO taskTypes (id, key, name, description, defaultRate, active)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).bind(tt.id, tt.key, tt.name, tt.description, tt.defaultRate, tt.active).run();
+    } catch (e) {
+      // Ignore
+    }
+  }
+
+  // 2. Users with explicit credentials
+  for (const u of DEFAULT_USERS) {
+    try {
+      await db.prepare(`
+        INSERT OR IGNORE INTO users (id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        u.id,
+        u.email,
+        u.displayName,
+        u.role,
+        u.status,
+        u.avatarUrl,
+        u.phone,
+        u.bio,
+        u.storedPassword,
+        u.createdAt
+      ).run();
+
+      // Ensure credentials and role are always updated
+      await db.prepare(`
+        UPDATE users
+        SET storedPassword = ?, role = ?, status = 'active'
+        WHERE LOWER(email) = ? OR id = ?
+      `).bind(u.storedPassword, u.role, u.email.toLowerCase(), u.id).run();
+    } catch (e) {
+      console.warn(`Error seeding user ${u.email}:`, e);
+    }
+  }
 }

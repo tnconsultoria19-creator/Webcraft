@@ -44,17 +44,81 @@ interface AdminSettingsModalProps {
   currentUser: UserType;
 }
 
+export const CORE_TEAM_USERS: UserType[] = [
+  {
+    id: 'usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t',
+    email: 'lhudyquiala@gmail.com',
+    displayName: 'Ludmila Domingos Quiala',
+    role: 'member',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: '+27 71 131 2594',
+    bio: 'Operations & Lead Specialist',
+    storedPassword: 'ludmila2026',
+    createdAt: '2026-09-17T12:36:50.033Z'
+  },
+  {
+    id: 'usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ',
+    email: 'cesarfatimata66@gmail.com',
+    displayName: 'Silvana Camara ',
+    role: 'member',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: undefined,
+    bio: 'Template & Outreach Specialist',
+    storedPassword: 'silvana2026',
+    createdAt: '2026-08-17T19:15:05.888Z'
+  },
+  {
+    id: 'usr_dG5jb25zdWx0b3JpYTE5QGdtYWlsLmNvbQ',
+    email: 'tnconsultoria19@gmail.com',
+    displayName: 'TN Consultoria',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: undefined,
+    bio: 'System Administrator',
+    storedPassword: 'admin2026',
+    createdAt: '2026-08-12T08:00:00.000Z'
+  },
+  {
+    id: 'usr_YWRtaW5Ad2ViY3JhZnQuY29t',
+    email: 'admin@webcraft.com',
+    displayName: 'admin',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: undefined,
+    bio: 'System Admin Account',
+    storedPassword: 'password123',
+    createdAt: '2026-08-14T20:46:23.839Z'
+  },
+  {
+    id: 'usr_b2xpc2JlbEBnbWFpbC5jb20',
+    email: 'olisbel@gmail.com',
+    displayName: 'olisbel',
+    role: 'admin',
+    status: 'active',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+    phone: undefined,
+    bio: 'Lead Platform Developer & Administrator',
+    storedPassword: '19921108626Op@',
+    createdAt: '2026-08-12T08:02:42.929Z'
+  }
+];
+
 export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
   isOpen,
   onClose,
   currentUser
 }) => {
   const [activeTab, setActiveTab] = useState<'accounts' | 'finance'>('accounts');
-  const [usersList, setUsersList] = useState<UserType[]>([]);
+  const [usersList, setUsersList] = useState<UserType[]>(CORE_TEAM_USERS);
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [copiedPasswordId, setCopiedPasswordId] = useState<string | null>(null);
+  const [isReseeding, setIsReseeding] = useState(false);
 
   // New User Form State
   const [newEmail, setNewEmail] = useState('');
@@ -108,11 +172,14 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
     if (!isOpen) return;
 
     const mergeUsers = (uList: UserType[]) => {
-      if (!Array.isArray(uList)) return;
+      if (!Array.isArray(uList) || uList.length === 0) return;
       setUsersList((previous) => {
-        const previousById = new Map<string, UserType>((previous || []).map((u) => [u.id, u]));
-        return uList.map((user) => {
-          const prev = previousById.get(user.id);
+        const base = previous && previous.length > 0 ? previous : CORE_TEAM_USERS;
+        const previousById = new Map<string, UserType>(base.map((u) => [u.id, u]));
+        const previousByEmail = new Map<string, UserType>(base.map((u) => [u.email.toLowerCase(), u]));
+
+        const updated = uList.map((user) => {
+          const prev = previousById.get(user.id) || previousByEmail.get(user.email.toLowerCase());
           const preservedPassword =
             user.storedPassword !== undefined && user.storedPassword !== null && user.storedPassword !== ''
               ? user.storedPassword
@@ -132,10 +199,29 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
           };
           return merged;
         });
+
+        // Ensure all 5 core team users are in the list
+        for (const core of CORE_TEAM_USERS) {
+          if (!updated.some((u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id)) {
+            updated.push(core);
+          }
+        }
+
+        return updated;
       });
       setUsersError(null);
       setIsLoading(false);
     };
+
+    // Auto-prime database credentials in the background
+    fetch('/api/admin/reseed-team', { method: 'POST' })
+      .then((r) => r.json())
+      .then((data: any) => {
+        if (data && Array.isArray(data.users)) {
+          mergeUsers(data.users);
+        }
+      })
+      .catch(() => {});
 
     // First subscribe to admin endpoint which has the stored credentials
     const unsubUsers = subscribeToAdminUsers(currentUser.id, (adminUsers) => {
@@ -161,6 +247,23 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       unsubFinance();
     };
   }, [isOpen, currentUser.id]);
+
+  const handleReseedTeam = async () => {
+    setIsReseeding(true);
+    setStatusMsg(null);
+    try {
+      const res = await fetch('/api/admin/reseed-team', { method: 'POST' });
+      const data = await res.json() as any;
+      if (data && Array.isArray(data.users)) {
+        setUsersList(data.users);
+      }
+      setStatusMsg({ type: 'success', text: 'All 5 team accounts and passwords have been synchronized with the database!' });
+    } catch (err: any) {
+      setStatusMsg({ type: 'error', text: err.message || 'Failed to sync team accounts' });
+    } finally {
+      setIsReseeding(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -583,7 +686,18 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                 </div>
               )}
               <div className="space-y-3">
-                <h3 className="font-bold text-sm text-[#292A29]">Existing Team Accounts ({usersList.length})</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-[#292A29]">Existing Team Accounts ({usersList.length})</h3>
+                  <button
+                    type="button"
+                    onClick={handleReseedTeam}
+                    disabled={isReseeding}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F0EDE5] hover:bg-[#E5EEEE] text-[#245F6B] border border-[#DDD8CE] text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isReseeding ? 'animate-spin' : ''}`} />
+                    <span>{isReseeding ? 'Syncing...' : 'Sync / Restore All 5 Team Accounts'}</span>
+                  </button>
+                </div>
                 
                 <div className="space-y-2.5">
                   {usersList.map((u) => (
