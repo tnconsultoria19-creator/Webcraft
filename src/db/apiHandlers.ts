@@ -74,6 +74,23 @@ export async function handleApiRequest(
     return { status: 200, json: user };
   }
 
+  // ADMIN USER LIST - includes stored credentials for administrators only
+  const adminUsersMatch = path.match(/^\/api\/users\/admin-list\/([^/]+)$/);
+  if (adminUsersMatch && method === 'GET') {
+    const adminUserId = decodeURIComponent(adminUsersMatch[1]);
+    const admin = await db.prepare('SELECT id, role FROM users WHERE id = ?').bind(adminUserId).first();
+    if (!admin || admin.role !== 'admin') {
+      return { status: 403, json: { error: 'Only administrators can access team credentials.' } };
+    }
+
+    const { results: users } = await db
+      .prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users ORDER BY displayName ASC')
+      .bind()
+      .all();
+
+    return { status: 200, json: users };
+  }
+
   // GET ALL USERS - return only fields needed by the UI, never password data
   if (path === '/api/users' && method === 'GET') {
     const { results: users } = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all();
