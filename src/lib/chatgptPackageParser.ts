@@ -170,109 +170,111 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
   if (!rawInput || !rawInput.trim()) {
     return {
       success: false,
-      error: 'Paste the ChatGPT business package first.'
+      error: 'Paste at least one ChatGPT output block.'
     };
   }
 
   const text = rawInput.trim();
 
-  // 1. Extract Section 2: Client Profile JSON
+  // The user may paste any one, any two, or all three outputs.
+  // Missing outputs are intentionally allowed.
   const jsonExtract = extractJsonObject(text);
-  if (!jsonExtract || !jsonExtract.jsonStr.includes('{')) {
-    return {
-      success: false,
-      error: 'Client profile JSON not found.'
-    };
+
+  let clientProfile: Record<string, any> = {};
+  let formattedJson = '';
+
+  if (jsonExtract?.jsonStr && jsonExtract.jsonStr.includes('{')) {
+    try {
+      const parsed = JSON.parse(jsonExtract.jsonStr);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        clientProfile = parsed;
+        formattedJson = JSON.stringify(parsed, null, 2);
+      }
+    } catch {
+      // A JSON block may be absent or incomplete while another output is being processed.
+      // Do not block the other outputs.
+    }
   }
 
-  let clientProfile: Record<string, any>;
-  try {
-    clientProfile = JSON.parse(jsonExtract.jsonStr);
-  } catch {
-    return {
-      success: false,
-      error: 'Client profile contains invalid JSON.'
-    };
-  }
+  const businessNameFromProfile = String(clientProfile.businessName || '').trim();
 
-  if (typeof clientProfile !== 'object' || clientProfile === null || Array.isArray(clientProfile)) {
-    return {
-      success: false,
-      error: 'Client profile contains invalid JSON.'
-    };
-  }
-
-  // Validate businessName
-  const businessName = (clientProfile.businessName || '').toString().trim();
-  if (!businessName) {
-    return {
-      success: false,
-      error: 'Business name is required.'
-    };
-  }
-
-  // 2. Extract Section 1: Gemini Implementation Instruction
-  // Find where Section 1 begins:
-  // Starts either at SECTION 1 / OUTPUT 1 / GEMINI IMPLEMENTATION INSTRUCTION marker, or at start of text.
-  let instructionStartIndex = 0;
-  const s1HeaderMatch = text.match(
-    /^(?:#+\s*)?(?:SECTION\s*1\s*[:\-–—]?|OUTPUT\s*1\s*[:\-–—]?|GEMINI\s*IMPLEMENTATION\s*INSTRUCTION\s*[:\-–—]?)(?:[^\n]*\n)/im
+  // Extract Output 1 when present.
+  let geminiInstruction = '';
+  const output1Match = text.match(
+    /===\s*WEBCRAFT_OUTPUT_1_GEMINI_INSTRUCTION\s*===([\s\S]*?)(?:===\s*END\s+WEBCRAFT_OUTPUT_1_GEMINI_INSTRUCTION\s*===|===\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\s*===|$)/i
   );
-
-  if (s1HeaderMatch && s1HeaderMatch.index !== undefined) {
-    instructionStartIndex = s1HeaderMatch.index + s1HeaderMatch[0].length;
+  if (output1Match?.[1]?.trim()) {
+    geminiInstruction = output1Match[1].trim();
+  } else {
+    const s1HeaderMatch = text.match(
+      /^(?:#+\s*)?(?:SECTION\s*1\s*[:\-–—]?|OUTPUT\s*1\s*[:\-–—]?|GEMINI\s*IMPLEMENTATION\s*INSTRUCTION\s*[:\-–—]?)(?:[^\n]*\n)/im
+    );
+    if (s1HeaderMatch && s1HeaderMatch.index !== undefined) {
+      let end = jsonExtract?.startIndex ?? text.length;
+      const section1 = text.substring(s1HeaderMatch.index + s1HeaderMatch[0].length, end);
+      geminiInstruction = section1.replace(/[\r\n]+[-=_]{3,}[\r\n]*$/, '').trim();
+    } else if (!jsonExtract) {
+      // If the user pasted only a Gemini instruction with no header, accept the whole input.
+      geminiInstruction = text;
+    }
   }
 
-  // Find where Section 1 ends:
-  // It ends where Section 2 begins.
-  // Check for explicit Section 2 header before the JSON extract
-  let instructionEndIndex = jsonExtract.startIndex;
-  const textBeforeJson = text.substring(instructionStartIndex, jsonExtract.startIndex);
-  const s2HeaderMatch = textBeforeJson.match(
-    /(?:\n|^)(?:#+\s*)?(?:SECTION\s*2\s*[:\-–—]?|OUTPUT\s*2\s*[:\-–—]?|CLIENT\s*PROFILE\s*(?:JSON)?\s*[:\-–—]?)[^\n]*$/im
+  // Extract Output 2 only when valid JSON is present.
+  if (!formattedJson && jsonExtract?.jsonStr) {
+    try {
+      const parsed = JSON.parse(jsonExtract.jsonStr);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        clientProfile = parsed;
+        formattedJson = JSON.stringify(parsed, null, 2);
+      }
+    } catch {
+      // Leave JSON blank rather than blocking the available outputs.
+    }
+  }
+
+  // Extract Output 3 / business name / project identifier.
+  const afterJsonText = jsonExtract ? text.substring(jsonExtract.endIndex).trim() : '';
+  let output3Value = '';
+
+  const explicitOutput3 = text.match(
+    /===\s*WEBCRAFT_OUTPUT_3_PROJECT_DOMAIN_NAME\s*===([\s\S]*?)(?:===\s*END\s+WEBCRAFT_OUTPUT_3_PROJECT_DOMAIN_NAME\s*===|$)/i
   );
-
-  if (s2HeaderMatch && s2HeaderMatch.index !== undefined) {
-    instructionEndIndex = instructionStartIndex + s2HeaderMatch.index;
+  if (explicitOutput3?.[1]?.trim()) {
+    output3Value = explicitOutput3[1].trim();
+  } else {
+    const businessNameMatch = text.match(
+      /(?:^|\n)\s*(?:BUSINESS\s*NAME|PROJECT\s*\/\s*DOMAIN\s*NAME|DOMAIN\s*NAME|PROJECT\s*NAME)\s*[:\-–—]\s*([^\n]+)/i
+    );
+    if (businessNameMatch?.[1]?.trim()) {
+      output3Value = businessNameMatch[1].trim();
+    } else if (afterJsonText) {
+      output3Value = afterJsonText;
+    } else if (!businessNameFromProfile && !geminiInstruction) {
+      output3Value = text;
+    }
   }
 
-  let geminiInstruction = text.substring(instructionStartIndex, instructionEndIndex).trim();
+  const normalizedFromOutput3 = normalizeProjectDomainName(output3Value);
+  const projectDomainName =
+    normalizedFromOutput3 ||
+    normalizeProjectDomainName(businessNameFromProfile);
 
-  // Strip trailing markdown divider line (--- or ===) if present
-  geminiInstruction = geminiInstruction.replace(/[\r\n]+[-=_]{3,}[\r\n]*$/, '').trim();
+  // If the third output is the only thing supplied, treat its readable value as the
+  // business name so the user can continue and save the client instead of being blocked.
+  const businessName =
+    businessNameFromProfile ||
+    output3Value
+      .replace(/^===.*?===/s, '')
+      .replace(/===.*$/s, '')
+      .trim();
 
-  if (!geminiInstruction) {
+  // A partial package is still a valid processing result as long as at least one
+  // supported output was supplied.
+  if (!geminiInstruction && !formattedJson && !output3Value) {
     return {
       success: false,
-      error: 'Gemini implementation instruction not found.'
+      error: 'No Gemini instruction, client profile JSON, or business name/project name was detected.'
     };
-  }
-
-  // 3. Extract Section 3: Project / Domain Name (or Business Name)
-  const afterJsonText = text.substring(jsonExtract.endIndex).trim();
-  let rawOutput3 = '';
-  
-  const s3HeaderMatch = afterJsonText.match(
-    /(?:#+\s*)?(?:={3,}\s*)?(?:WEBCRAFT_OUTPUT_3_PROJECT_DOMAIN_NAME|SECTION\s*3\s*[:\-–—]?|OUTPUT\s*3\s*[:\-–—]?|PROJECT\s*(?:\/|\s+)?DOMAIN\s*NAME\s*[:\-–—]?|BUSINESS\s*NAME\s*[:\-–—]?)(?:\s*={3,})?(?:[^\n]*\n)?([\s\S]*)/i
-  );
-  
-  if (s3HeaderMatch && s3HeaderMatch[1]) {
-    rawOutput3 = s3HeaderMatch[1].trim();
-  } else if (afterJsonText) {
-    rawOutput3 = afterJsonText;
-  }
-
-  // Normalize projectDomainName according to strict machine-safe domain rules
-  // If no output 3 was provided, normalize directly from businessName
-  const normalizedFromOutput3 = normalizeProjectDomainName(rawOutput3);
-  const projectDomainName = normalizedFromOutput3 || normalizeProjectDomainName(businessName);
-
-  // Format the JSON with 2 spaces for pristine display
-  let formattedJson = jsonExtract.jsonStr;
-  try {
-    formattedJson = JSON.stringify(clientProfile, null, 2);
-  } catch {
-    formattedJson = jsonExtract.jsonStr;
   }
 
   return {
