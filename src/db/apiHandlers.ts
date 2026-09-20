@@ -519,9 +519,10 @@ export async function handleApiRequest(
   const detailMatch = path.match(/^\/api\/leads\/([^/]+)\/detail$/);
   if (detailMatch && method === 'GET') {
     const leadId = detailMatch[1];
-    const [lead, contacts, tasks, outreach, notes, images, users] = await Promise.all([
+    const [lead, contacts, channels, tasks, outreach, notes, images, users] = await Promise.all([
       db.prepare('SELECT * FROM leads WHERE id = ? AND deletedAt IS NULL').bind(leadId).first(),
       db.prepare('SELECT * FROM contacts WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId).all(),
+      db.prepare('SELECT * FROM channels WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId).all(),
       db.prepare('SELECT * FROM tasks WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
       db.prepare('SELECT * FROM outreachAttempts WHERE leadId = ? ORDER BY sentAt DESC').bind(leadId).all(),
       db.prepare('SELECT * FROM leadNotes WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
@@ -534,7 +535,7 @@ export async function handleApiRequest(
     const enrichedLead = {
       ...lead,
       contacts: contacts.results.map((c: any) => ({ ...c, leadId })),
-      channels: [],
+      channels: channels.results,
       imagesCount: images.results.length,
       openTasksCount: tasks.results.filter((t: any) => t.status !== 'completed' && t.status !== 'cancelled').length,
       chatgptPackage: (lead as any).chatgptPackageJson ? JSON.parse((lead as any).chatgptPackageJson) : undefined
