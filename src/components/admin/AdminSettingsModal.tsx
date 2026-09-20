@@ -391,6 +391,27 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                     </div>
 
                     <div>
+                      <label className="block text-[#68645D] font-semibold mb-1">Account Password</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={editPassword}
+                          onChange={(e) => setEditPassword(e.target.value)}
+                          placeholder="Set or replace password"
+                          className="flex-1 bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-xl px-3.5 py-2 focus:outline-none focus:border-[#245F6B]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditPassword(Math.random().toString(36).slice(-10))}
+                          className="px-3 py-2 bg-[#E5EEEE] text-[#245F6B] rounded-xl font-bold"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[10px] text-[#969188]">Leave blank only when you do not want to change the password.</p>
+                    </div>
+
+                    <div>
                       <label className="block text-[#68645D] font-semibold mb-1">Account Role</label>
                       <select
                         value={editRole}
@@ -524,10 +545,12 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                           </div>
                           <div className="text-[11px] text-[#68645D] flex flex-wrap items-center gap-2 mt-0.5">
                             <span>{u.email} {u.phone && `• ${u.phone}`}</span>
-                            {u.storedPassword && (
-                              <span className="inline-flex items-center gap-1 bg-[#F0EDE5] text-[#292A29] border border-[#DDD8CE] px-2 py-0.5 rounded-md text-[10px]">
-                                <KeyRound className="w-3 h-3 text-[#245F6B]" />
-                                {showPasswordMap[u.id] ? u.storedPassword : '••••••••'}
+                            <span className="inline-flex items-center gap-1 bg-[#F0EDE5] text-[#292A29] border border-[#DDD8CE] px-2 py-0.5 rounded-md text-[10px]">
+                              <KeyRound className="w-3 h-3 text-[#245F6B]" />
+                              {u.storedPassword
+                                ? (showPasswordMap[u.id] ? u.storedPassword : '••••••••')
+                                : 'Password not stored'}
+                              {u.storedPassword && (
                                 <button
                                   type="button"
                                   onClick={() => setShowPasswordMap((prev) => ({ ...prev, [u.id]: !prev[u.id] }))}
@@ -535,8 +558,8 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
                                 >
                                   {showPasswordMap[u.id] ? 'Hide' : 'Show'}
                                 </button>
-                              </span>
-                            )}
+                              )}
+                            </span>
                           </div>
                         </div>
                       </div>
