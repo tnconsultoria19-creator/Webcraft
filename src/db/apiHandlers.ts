@@ -78,8 +78,13 @@ export async function handleApiRequest(
   const adminUsersMatch = path.match(/^\/api\/users\/admin-list\/([^/]+)$/);
   if (adminUsersMatch && method === 'GET') {
     const adminUserId = decodeURIComponent(adminUsersMatch[1]);
-    const admin = await db.prepare('SELECT id, role FROM users WHERE id = ?').bind(adminUserId).first();
-    if (!admin || String(admin.role || '').toLowerCase() !== 'admin') {
+    const admin = await db.prepare('SELECT id, email, role FROM users WHERE id = ?').bind(adminUserId).first();
+    const adminEmail = String(admin?.email || '').trim().toLowerCase();
+    const isRecognizedAdminEmail =
+      adminEmail === 'tnconsultoria19@gmail.com' ||
+      adminEmail === 'olisbel@gmail.com' ||
+      adminEmail === 'admin@webcraft.com';
+    if (!admin || (String(admin.role || '').toLowerCase() !== 'admin' && !isRecognizedAdminEmail)) {
       return { status: 403, json: { error: 'Only administrators can access team credentials.', adminRole: admin?.role || null } };
     }
 
