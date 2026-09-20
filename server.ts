@@ -25,13 +25,24 @@ async function startServer() {
   const uploadsPath = path.join(process.cwd(), 'data', 'uploads');
   app.use('/data/uploads', express.static(uploadsPath));
 
+  // Serve uploaded lead images in local dev preview
+  app.get('/api/uploads/file/:key(*)', (req, res) => {
+    const key = decodeURIComponent(req.params.key);
+    const fs = require('fs');
+    const localFilePath = path.join(uploadsPath, key.replace(/\//g, '_'));
+    if (fs.existsSync(localFilePath)) {
+      return res.sendFile(localFilePath);
+    }
+    res.status(404).send('File not found');
+  });
+
   // Mount unified API handler for all standard /api/* endpoints
   app.all('/api/*', async (req, res, next) => {
-    if (req.path === '/api/ai/sales-assistant' || req.path === '/api/health') {
+    if (req.path === '/api/ai/sales-assistant' || req.path === '/api/health' || req.path.startsWith('/api/uploads/file/')) {
       return next();
     }
     try {
-      const response = await handleApiRequest(req.path, req.method, req.body, req.headers);
+      const response = await handleApiRequest(req.originalUrl || req.path, req.method, req.body, req.headers as any);
       res.status(response.status).json(response.json);
     } catch (err: any) {
       console.error('Local Express API Error:', err);

@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import { X, User, KeyRound, Save, Check, Eye, EyeOff } from 'lucide-react';
-import { updatePassword } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
 import { User as UserType } from '../../types';
 import { updateOwnUserProfile } from '../../lib/firestoreService';
 
@@ -46,15 +44,6 @@ export const PersonalProfileModal: React.FC<PersonalProfileModalProps> = ({
         }
         if (newPassword !== confirmPassword) {
           throw new Error('New passwords do not match.');
-        }
-
-        // Try updating Firebase Auth password if user is logged in
-        if (auth.currentUser) {
-          try {
-            await updatePassword(auth.currentUser, newPassword.trim());
-          } catch (authErr: any) {
-            console.warn('Firebase Auth password update notice:', authErr?.message);
-          }
         }
       }
 

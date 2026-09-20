@@ -50,18 +50,32 @@ const indexes = [
 export async function ensureD1Schema(db: any) {
   for (const sql of schema) {
     const table = sql.match(/CREATE TABLE IF NOT EXISTS (\w+)/i)?.[1];
+    await db.prepare(sql).run();
+
     if (table && requiredColumns[table]) {
-      const result = await db.prepare(`PRAGMA table_info(${table})`).all();
-      const existing = new Set((result.results || []).map((row: any) => row.name));
-      const compatible = requiredColumns[table].every((column) => existing.has(column));
-      if (!compatible && existing.size > 0) {
-        await db.prepare(`DROP TABLE IF EXISTS ${table}`).run();
+      try {
+        const result = await db.prepare(`PRAGMA table_info(${table})`).all();
+        const existing = new Set((result.results || []).map((row: any) => row.name));
+        for (const column of requiredColumns[table]) {
+          if (!existing.has(column)) {
+            try {
+              await db.prepare(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT`).run();
+            } catch (alterErr) {
+              // Ignore if already added concurrently
+            }
+          }
+        }
+      } catch (checkErr) {
+        console.warn(`Schema column check warning for ${table}:`, checkErr);
       }
     }
-    await db.prepare(sql).run();
   }
 
   for (const sql of indexes) {
-    await db.prepare(sql).run();
+    try {
+      await db.prepare(sql).run();
+    } catch (idxErr) {
+      // Index may already exist
+    }
   }
 }

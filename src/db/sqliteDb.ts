@@ -228,25 +228,10 @@ INSERT OR IGNORE INTO taskTypes (id, key, name, description, defaultRate, active
 ('tt-7', 'production', 'Final Website Launch & Deployment', 'Building domain deployment and custom features', 0, 1);
 
 INSERT OR IGNORE INTO users (id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt) VALUES
-('usr_olisbel_gmail_com', 'olisbel@gmail.com', 'Olisbel', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', '+244900000000', 'Lead Platform Developer', '19921108626Op@', '2026-08-01T08:00:00.000Z'),
-('usr_admin_webcraft_com', 'admin@webcraft.com', 'Alex Admin (Manager)', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', '+27821112233', 'Operations Director & Platform Admin', 'password123', '2026-08-01T08:00:00.000Z'),
-('usr_john_webcraft_com', 'john@webcraft.com', 'John Developer', 'member', 'active', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80', '+27834445566', 'Senior Template Creator', 'password123', '2026-08-01T09:00:00.000Z'),
-('usr_sarah_webcraft_com', 'sarah@webcraft.com', 'Sarah Lead Finder', 'member', 'active', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80', '+27847778899', 'Lead Prospector', 'password123', '2026-08-02T10:00:00.000Z');
-
-INSERT OR IGNORE INTO leads (id, name, description, category, industry, city, province, country, address, website, existingWebsiteStatus, googleBusinessUrl, notes, source, stage, priority, quality, createdBy, createdByName, ownerId, ownerName, templateUrl, previewUrl, createdAt, updatedAt) VALUES
-('LEAD-000001', 'Apex Plumbing & Drainage', '24/7 Residential and commercial emergency plumbing services in Cape Town Northern Suburbs.', 'Home Services', 'Plumbing', 'Cape Town', 'Western Cape', 'South Africa', '14 Durban Road, Bellville', '', 'None', 'https://maps.google.com/?cid=12345678', 'Owner interested in urgent website for emergency weekend call-outs.', 'Gumtree', 'ready_for_outreach', 'high', 'verified', 'usr_sarah_webcraft_com', 'Sarah Lead Finder', 'usr_john_webcraft_com', 'John Developer', 'https://apex-plumbing-mockup.webcraft.preview', 'https://apex-plumbing-mockup.webcraft.preview', '2026-08-10T08:15:00.000Z', '2026-08-11T11:20:00.000Z'),
-('LEAD-000002', 'Bella Vista Bistro', 'Authentic Italian wood-fired pizza and pasta restaurant with outdoor garden seating.', 'Hospitality', 'Restaurants', 'Stellenbosch', 'Western Cape', 'South Africa', '42 Church Street', 'https://bellavistabistro.co.za', 'Outdated / Not Mobile Friendly', '', 'Current website built in 2014, broken menu PDF, needs online reservation button.', 'Instagram', 'interested', 'urgent', 'verified', 'usr_sarah_webcraft_com', 'Sarah Lead Finder', 'usr_john_webcraft_com', 'John Developer', 'https://bella-vista-preview.webcraft.preview', '', '2026-08-09T09:30:00.000Z', '2026-08-11T14:05:00.000Z');
-
-INSERT OR IGNORE INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES
-('c-1', 'LEAD-000001', 'primary_phone', '+27 65 123 4567', '651234567', 'Jacob Apex', 'Owner', '2026-08-10T08:15:00.000Z'),
-('c-2', 'LEAD-000001', 'whatsapp', '+27651234567', '651234567', 'Jacob Apex', 'Owner', '2026-08-10T08:15:00.000Z'),
-('c-3', 'LEAD-000001', 'email', 'info@apexplumbing.co.za', 'info@apexplumbing.co.za', '', '', '2026-08-10T08:15:00.000Z'),
-('c-4', 'LEAD-000002', 'primary_phone', '+27 21 883 9922', '218839922', 'Marco Rossi', 'Head Chef / Owner', '2026-08-09T09:30:00.000Z');
-
-INSERT OR IGNORE INTO tasks (id, leadId, leadName, leadStage, taskTypeId, taskTypeKey, taskTypeName, status, createdBy, createdByName, assignedTo, assignedToName, rateValue, version, createdAt) VALUES
-('task-1', 'LEAD-000001', 'Apex Plumbing & Drainage', 'ready_for_outreach', 'tt-1', 'capture', 'Lead Research & Capture', 'completed', 'usr_sarah_webcraft_com', 'Sarah Lead Finder', 'usr_sarah_webcraft_com', 'Sarah Lead Finder', 0.0, 1, '2026-08-10T08:15:00.000Z'),
-('task-2', 'LEAD-000001', 'Apex Plumbing & Drainage', 'ready_for_outreach', 'tt-2', 'template', 'Template Prototype Creation', 'completed', 'usr_sarah_webcraft_com', 'Sarah Lead Finder', 'usr_john_webcraft_com', 'John Developer', 1.0, 1, '2026-08-10T09:00:00.000Z'),
-('task-3', 'LEAD-000001', 'Apex Plumbing & Drainage', 'ready_for_outreach', 'tt-3', 'outreach', 'Initial Business Outreach', 'available', 'usr_john_webcraft_com', 'John Developer', NULL, NULL, 0.5, 1, '2026-08-10T11:20:00.000Z');
+('usr_b2xpc2JlbEBnbWFpbC5jb20', 'olisbel@gmail.com', 'olisbel', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Lead Platform Developer & Administrator', '19921108626Op@', '2026-08-12T08:02:42.929Z'),
+('usr_YWRtaW5Ad2ViY3JhZnQuY29t', 'admin@webcraft.com', 'admin', 'admin', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'System Admin Account', 'password123', '2026-08-14T20:46:23.839Z'),
+('usr_bGh1ZHlxdWlhbGFAZ21haWwuY29t', 'lhudyquiala@gmail.com', 'Ludmila Domingos Quiala', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Operations & Lead Specialist', NULL, '2026-09-17T12:36:50.033Z'),
+('usr_Y2VzYXJmYXRpbWF0YTY2QGdtYWlsLmNvbQ', 'cesarfatimata66@gmail.com', 'Silvana Camara ', 'member', 'active', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80', NULL, 'Template & Outreach Specialist', NULL, '2026-08-17T19:15:05.888Z');
 `;
 
 async function getLocalDatabase() {
@@ -280,31 +265,49 @@ export async function getDb(env?: any) {
   return {
     prepare: (sql: string) => {
       const stmt = dbInstance.prepare(sql);
+      const createBound = (mappedArgs: any[] = []) => ({
+        all: async () => {
+          const results = stmt.all(...mappedArgs);
+          return { results };
+        },
+        run: async () => {
+          stmt.run(...mappedArgs);
+          return { success: true };
+        },
+        first: async (colName?: string) => {
+          const res = stmt.get(...mappedArgs);
+          if (!res) return null;
+          if (colName) return res[colName];
+          return res;
+        }
+      });
+
       return {
+        ...createBound([]),
         bind: (...args: any[]) => {
           const mappedArgs = args.map(arg => {
             if (typeof arg === 'boolean') return arg ? 1 : 0;
             if (arg !== null && typeof arg === 'object') return JSON.stringify(arg);
             return arg;
           });
-          return {
-            all: async () => {
-              const results = stmt.all(...mappedArgs);
-              return { results };
-            },
-            run: async () => {
-              stmt.run(...mappedArgs);
-              return { success: true };
-            },
-            first: async (colName?: string) => {
-              const res = stmt.get(...mappedArgs);
-              if (!res) return null;
-              if (colName) return res[colName];
-              return res;
-            }
-          };
+          return createBound(mappedArgs);
         }
       };
+    },
+    batch: async (statements: any[]) => {
+      const results: any[] = [];
+      for (const statement of statements) {
+        if (typeof statement.all === 'function') {
+          const res = await statement.all();
+          results.push(res);
+        } else if (typeof statement.run === 'function') {
+          const res = await statement.run();
+          results.push(res);
+        } else {
+          results.push({ results: [] });
+        }
+      }
+      return results;
     }
   };
 }
