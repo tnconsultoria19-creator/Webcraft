@@ -58,7 +58,22 @@ const activities = docs('activities.json');
 
 const lines = [
   '-- WebCraft Studio Firestore -> Cloudflare D1 migration',
-  '-- Generated from the complete Firestore backup files.'
+  '-- Generated from the complete Firestore backup files.',
+  '-- Rebuild the current D1 schema before importing historical data.',
+  '-- The existing legacy D1 schema is incompatible with the current WebCraft schema.',
+  'DROP TABLE IF EXISTS activities;',
+  'DROP TABLE IF EXISTS contacts;',
+  'DROP TABLE IF EXISTS channels;',
+  'DROP TABLE IF EXISTS tasks;',
+  'DROP TABLE IF EXISTS taskTypes;',
+  'DROP TABLE IF EXISTS outreachAttempts;',
+  'DROP TABLE IF EXISTS images;',
+  'DROP TABLE IF EXISTS documents;',
+  'DROP TABLE IF EXISTS stageHistory;',
+  'DROP TABLE IF EXISTS leadNotes;',
+  'DROP TABLE IF EXISTS financialRecords;',
+  'DROP TABLE IF EXISTS leads;',
+  'DROP TABLE IF EXISTS users;'
 ];
 
 for (const u of users) {
