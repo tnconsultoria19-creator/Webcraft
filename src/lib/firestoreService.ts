@@ -417,9 +417,12 @@ export async function adminOverrideTask(
   const res = await fetch('/api/tasks/override', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ taskId, updates })
+    body: JSON.stringify({ adminUserId: adminUser.id, taskId, updates })
   });
-  if (!res.ok) throw new Error('Failed to override task');
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({}));
+    throw new Error((errorBody as any)?.error || 'Failed to override task');
+  }
 }
 
 export function subscribeToImages(leadId: string, callback: (images: ImageAsset[]) => void) {
