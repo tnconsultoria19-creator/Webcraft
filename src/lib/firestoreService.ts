@@ -106,10 +106,9 @@ export function subscribeToUsers(callback: (users: User[]) => void) {
 }
 
 export async function getUserProfile(uid: string): Promise<User | null> {
-  const res = await fetch('/api/users');
+  const res = await fetch(`/api/users/${encodeURIComponent(uid)}`);
   if (!res.ok) return null;
-  const users: User[] = await res.json() as any;
-  return users.find(u => u.id === uid) || null;
+  return await res.json() as any;
 }
 
 export async function syncUserProfile(uid: string, email: string, displayName?: string): Promise<User> {
