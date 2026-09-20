@@ -105,6 +105,14 @@ export function subscribeToUsers(callback: (users: User[]) => void) {
   return createPoller('/api/users', callback, 8000);
 }
 
+export function subscribeToAdminUsers(adminUserId: string, callback: (users: User[]) => void) {
+  return createPoller(
+    `/api/users/admin-list/${encodeURIComponent(adminUserId)}`,
+    callback,
+    8000
+  );
+}
+
 export async function getUserProfile(uid: string): Promise<User | null> {
   const res = await fetch(`/api/users/${encodeURIComponent(uid)}`);
   if (!res.ok) return null;
