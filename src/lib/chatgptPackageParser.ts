@@ -87,7 +87,7 @@ function extractJsonObject(text: string): { jsonStr: string; startIndex: number;
   }
 
   // 2. Check if there is a Section 2 header
-  const s2Match = text.match(/(?:#+\s*)?(?:SECTION\s*2|OUTPUT\s*2|CLIENT\s*PROFILE\s*(?:JSON)?)/i);
+  const s2Match = text.match(/(?:#+\s*)?(?:WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON|SECTION\s*2|OUTPUT\s*2|CLIENT\s*PROFILE\s*(?:JSON)?)/i);
   let searchFrom = 0;
   if (s2Match && s2Match.index !== undefined) {
     searchFrom = s2Match.index;
@@ -201,7 +201,7 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
   // Extract Output 1 when present.
   let geminiInstruction = '';
   const output1Match = text.match(
-    /===\s*WEBCRAFT_OUTPUT_1_GEMINI_INSTRUCTION\s*===([\s\S]*?)(?:===\s*END\s+WEBCRAFT_OUTPUT_1_GEMINI_INSTRUCTION\s*===|===\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\s*===|$)/i
+    /===\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\s*===([\s\S]*?)(?:===\s*END\s+WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\s*===|===\s*END\s+WEBCRAFT_OUTPUT_1_GEMINI_INSTRUCTION\s*===|===\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\s*===|$)/i
   );
   if (output1Match?.[1]?.trim()) {
     geminiInstruction = output1Match[1].trim();
@@ -261,16 +261,46 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
   const normalizedFromOutput3 = normalizeProjectDomainName(output3Value);
   const projectDomainName =
     normalizedFromOutput3 ||
-    normalizeProjectDomainName(businessNameFromProfile);
+    normalizeProjectDomainName(output1ProjectDomainName) ||
+    normalizeProjectDomainName(businessName);
 
   // If the third output is the only thing supplied, treat its readable value as the
   // business name so the user can continue and save the client instead of being blocked.
+  const output1BusinessName = (() => {
+    const match = text.match(
+      /===\\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===([\\s\\S]*?)(?:===\\s*END\\s+WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===|===\\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\\s*===|$)/i
+    );
+    if (!match?.[1]) return '';
+    try {
+      const parsed = JSON.parse(match[1].trim().replace(/^\`\`\`json\\s*/i, '').replace(/\\s*\`\`\`$/i, ''));
+      return String(parsed?.business?.businessName || '').trim();
+    } catch {
+      return '';
+    }
+  })();
+
+  const output1ProjectDomainName = (() => {
+    const match = text.match(
+      /===\\s*WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===([\\s\\S]*?)(?:===\\s*END\\s+WEBCRAFT_OUTPUT_1_GEMINI_WEBSITE_PACKAGE_JSON\\s*===|===\\s*WEBCRAFT_OUTPUT_2_CLIENT_PROFILE_JSON\\s*===|$)/i
+    );
+    if (!match?.[1]) return '';
+    try {
+      const parsed = JSON.parse(match[1].trim().replace(/^\`\`\`json\\s*/i, '').replace(/\\s*\`\`\`$/i, ''));
+      return String(parsed?.project?.domainName || '').trim();
+    } catch {
+      return '';
+    }
+  })();
+
+  const legacyOutput3BusinessName = output3Value && /\\s/.test(output3Value) ? output3Value
+    .replace(/^===.*?===/s, '')
+    .replace(/===.*$/s, '')
+    .trim() : '';
+
   const businessName =
     businessNameFromProfile ||
-    output3Value
-      .replace(/^===.*?===/s, '')
-      .replace(/===.*$/s, '')
-      .trim();
+    output1BusinessName ||
+    legacyOutput3BusinessName;
 
   // A partial package is still a valid processing result as long as at least one
   // supported output was supplied.
