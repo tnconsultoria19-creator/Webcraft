@@ -584,6 +584,9 @@ export function App() {
         {/* Top Header */}
         <Header
           currentUser={currentUser}
+          leads={leads}
+          tasks={tasks}
+          duplicateReports={duplicateReports}
           onOpenQuickAdd={() => setCurrentView('create_client')}
           onOpenAddLink={() => setIsAddLinkOpen(true)}
           onSearch={(q) => {
