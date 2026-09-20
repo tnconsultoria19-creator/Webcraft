@@ -33,6 +33,7 @@ export const PersonalEarningsModal: React.FC<PersonalEarningsModalProps> = ({
         (t) => (t.assignedTo === currentUser.id || t.createdBy === currentUser.id) && t.status === 'completed'
       );
       setTasks(myCompleted);
+      setIsLoading(false);
     });
 
     return () => {
