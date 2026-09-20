@@ -195,7 +195,7 @@ export interface LeadDetailPayload {
 }
 
 export function subscribeToLeadDetail(leadId: string, callback: (data: LeadDetailPayload) => void) {
-  return createPoller(`/api/leads/${encodeURIComponent(leadId)}/detail`, callback, 8000);
+  return createPoller(`/api/leads/${encodeURIComponent(leadId)}/detail`, callback, 15000);
 }
 
 export function subscribeToTasks(callback: (tasks: Task[]) => void) {
