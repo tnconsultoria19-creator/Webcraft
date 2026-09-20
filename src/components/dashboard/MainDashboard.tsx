@@ -25,7 +25,9 @@ import {
   Calendar,
   BarChart3,
   AlertTriangle,
-  Trash2
+  Trash2,
+  Shield,
+  PieChart
 } from 'lucide-react';
 import { Lead, Task, OutreachAttempt, ActivityLog, User } from '../../types';
 import { formatCurrency, formatDateTime, formatTimeAgo, formatExternalUrl } from '../../lib/utils';
@@ -43,6 +45,9 @@ interface MainDashboardProps {
   onSelectLead: (leadId: string) => void;
   onOpenQuickAdd: () => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
+  onOpenTeamPerformance?: () => void;
+  onOpenPersonalEarnings?: () => void;
+  onOpenAdminSettings?: () => void;
 }
 
 export const MainDashboard: React.FC<MainDashboardProps> = ({
@@ -53,7 +58,10 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   activities,
   onSelectLead,
   onOpenQuickAdd,
-  onDeleteLead
+  onDeleteLead,
+  onOpenTeamPerformance,
+  onOpenPersonalEarnings,
+  onOpenAdminSettings
 }) => {
   const [isLoading] = useState(false);
   const [chartPeriod, setChartPeriod] = useState<'Weekly' | 'Monthly'>('Weekly');
@@ -116,6 +124,53 @@ export const MainDashboard: React.FC<MainDashboardProps> = ({
   return (
     <div className="space-y-4 font-['Poppins'] text-[#68645D] pb-10">
       
+      {/* QUICK ACTIONS & AUDIT SHORTCUT BAR */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 sm:p-4 rounded-2xl border border-[#DDD8CE] shadow-xs">
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#4F765C] animate-pulse" />
+          <span className="text-xs font-bold text-[#292A29]">Live Operations Control</span>
+          <span className="text-xs text-[#969188] hidden sm:inline">• Real-time sync active</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {onOpenTeamPerformance && (
+            <button
+              type="button"
+              onClick={onOpenTeamPerformance}
+              className="px-3.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F4E9D8] text-[#91651B] border border-[#DDD8CE] text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:border-[#D9A441]"
+              title="Open Team Task Performance & Earnings Audit"
+            >
+              <PieChart className="w-3.5 h-3.5 text-[#D9A441]" />
+              <span>Team Performance & Audit</span>
+            </button>
+          )}
+
+          {onOpenPersonalEarnings && (
+            <button
+              type="button"
+              onClick={onOpenPersonalEarnings}
+              className="px-3.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#E5EEEE] text-[#245F6B] border border-[#DDD8CE] text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:border-[#245F6B]"
+              title="Open Personal Earnings & Wallet"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-[#4F765C]" />
+              <span>My Earnings</span>
+            </button>
+          )}
+
+          {currentUser?.role === 'admin' && onOpenAdminSettings && (
+            <button
+              type="button"
+              onClick={onOpenAdminSettings}
+              className="px-3.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#A65B55]/15 text-[#A65B55] border border-[#DDD8CE] text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-2xs hover:border-[#A65B55]"
+              title="Open Admin Financial Controls & User Settings"
+            >
+              <Shield className="w-3.5 h-3.5 text-[#A65B55]" />
+              <span>Admin Settings</span>
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* ========================================================= */}
       {/* SECTION 1: TOP STATS + PLAN VELOCITY CHART (GYMOVE HERO GRID) */}
       {/* ========================================================= */}

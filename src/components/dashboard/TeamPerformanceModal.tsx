@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, DollarSign, Shield, Download } from 'lucide-react';
+import { X, Users, DollarSign, Shield, Download, RefreshCw } from 'lucide-react';
 import { User, Task, FinancialRecord } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { subscribeToUsers, subscribeToTasks, subscribeToFinancialRecords } from '../../lib/firestoreService';
 import { downloadTasksCSV } from '../../lib/exportUtils';
+import { CORE_TEAM_USERS } from '../admin/AdminSettingsModal';
 
 interface TeamPerformanceModalProps {
   isOpen: boolean;
@@ -14,7 +15,7 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<User[]>(CORE_TEAM_USERS);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,16 +23,33 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    // Background ensure team is primed
+    fetch('/api/admin/reseed-team', { method: 'POST' }).catch(() => {});
+
     const unsubUsers = subscribeToUsers((uList) => {
-      setUsers(uList);
+      if (Array.isArray(uList) && uList.length > 0) {
+        setUsers((prev) => {
+          const list = [...uList];
+          for (const core of CORE_TEAM_USERS) {
+            if (!list.some((u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id)) {
+              list.push(core);
+            }
+          }
+          return list;
+        });
+      }
     });
 
     const unsubTasks = subscribeToTasks((tList) => {
-      setTasks(tList);
+      if (Array.isArray(tList)) {
+        setTasks(tList);
+      }
     });
 
     const unsubFinance = subscribeToFinancialRecords((records) => {
-      setFinancialRecords(records);
+      if (Array.isArray(records)) {
+        setFinancialRecords(records);
+      }
       setIsLoading(false);
     });
 
@@ -46,7 +64,9 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
 
   // Build team performance map from users, tasks, and real financial records
   const teamStats = users.map((u) => {
-    const userRecords = financialRecords.filter((r) => r.userId === u.id);
+    const userRecords = financialRecords.filter(
+      (r) => r.userId === u.id || r.userId === u.email || (r as any).userEmail === u.email
+    );
     const earnedRecords = userRecords.filter((r) => r.status === 'earned');
     const potentialRecords = userRecords.filter((r) => r.status === 'potential');
 
@@ -58,7 +78,7 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
     const dealBonusCount = earnedRecords.filter((r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS').length;
 
     const userCompletedTasks = tasks.filter(
-      (t) => (t.assignedTo === u.id || t.createdBy === u.id) && t.status === 'completed'
+      (t) => (t.assignedTo === u.id || t.createdBy === u.id || t.assignedTo === u.email) && t.status === 'completed'
     );
 
     return {

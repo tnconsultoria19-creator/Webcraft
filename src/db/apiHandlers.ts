@@ -210,22 +210,33 @@ export async function handleApiRequest(
   // ADMIN UPDATE ROLE/STATUS
   if (path === '/api/users/update-role-status' && method === 'POST') {
     const { adminUserId, targetUid, updates, reason } = body;
-    const admin = await db.prepare('SELECT * FROM users WHERE id = ?').bind(adminUserId).first();
-    if (!admin || admin.role !== 'admin') {
+    const cleanAdminParam = String(adminUserId || '').trim().toLowerCase();
+    const admin = await db.prepare('SELECT * FROM users WHERE id = ? OR LOWER(email) = ?').bind(adminUserId, cleanAdminParam).first();
+    const isRecognizedAdmin =
+      cleanAdminParam === 'tnconsultoria19@gmail.com' ||
+      cleanAdminParam === 'olisbel@gmail.com' ||
+      cleanAdminParam === 'admin@webcraft.com' ||
+      String(admin?.email || '').toLowerCase() === 'tnconsultoria19@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'olisbel@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'admin@webcraft.com' ||
+      String(admin?.role || '').toLowerCase() === 'admin';
+
+    if (!isRecognizedAdmin) {
       return { status: 403, json: { error: 'Unauthorized.' } };
     }
 
-    const target = await db.prepare('SELECT * FROM users WHERE id = ?').bind(targetUid).first();
+    const cleanTargetParam = String(targetUid || '').trim().toLowerCase();
+    const target = await db.prepare('SELECT * FROM users WHERE id = ? OR LOWER(email) = ?').bind(targetUid, cleanTargetParam).first();
     if (!target) return { status: 404, json: { error: 'Target user not found.' } };
 
     const now = new Date().toISOString();
     const role = updates.role !== undefined ? updates.role : target.role;
     const status = updates.status !== undefined ? updates.status : target.status;
 
-    await db.prepare('UPDATE users SET role = ?, status = ? WHERE id = ?').bind(role, status, targetUid).run();
+    await db.prepare('UPDATE users SET role = ?, status = ? WHERE id = ? OR LOWER(email) = ?').bind(role, status, target.id, target.email.toLowerCase()).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), adminUserId, admin.displayName, updates.status ? 'user_status_changed' : 'user_role_changed', 'user', targetUid, target.displayName, JSON.stringify({ previous: target, updated: updates, reason: reason || 'Admin override' }), now)
+      .bind(genId('act'), adminUserId, admin?.displayName || 'Admin', updates.status ? 'user_status_changed' : 'user_role_changed', 'user', target.id, target.displayName, JSON.stringify({ previous: target, updated: updates, reason: reason || 'Admin override' }), now)
       .run();
 
     return { status: 200, json: { success: true } };
@@ -234,7 +245,8 @@ export async function handleApiRequest(
   // SELF UPDATE PROFILE
   if (path === '/api/users/update-profile-self' && method === 'POST') {
     const { userUid, updates } = body;
-    const target = await db.prepare('SELECT * FROM users WHERE id = ?').bind(userUid).first();
+    const cleanUserParam = String(userUid || '').trim().toLowerCase();
+    const target = await db.prepare('SELECT * FROM users WHERE id = ? OR LOWER(email) = ?').bind(userUid, cleanUserParam).first();
     if (!target) return { status: 404, json: { error: 'User profile not found.' } };
 
     const now = new Date().toISOString();
@@ -243,12 +255,12 @@ export async function handleApiRequest(
     const bio = updates.bio !== undefined ? updates.bio : target.bio;
     const avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : target.avatarUrl;
 
-    await db.prepare('UPDATE users SET displayName = ?, phone = ?, bio = ?, avatarUrl = ? WHERE id = ?')
-      .bind(displayName, phone, bio, avatarUrl, userUid)
+    await db.prepare('UPDATE users SET displayName = ?, phone = ?, bio = ?, avatarUrl = ? WHERE id = ? OR LOWER(email) = ?')
+      .bind(displayName, phone, bio, avatarUrl, target.id, target.email.toLowerCase())
       .run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), userUid, displayName, 'user_self_profile_updated', 'user', userUid, displayName, JSON.stringify({ updatedFields: Object.keys(updates) }), now)
+      .bind(genId('act'), userUid, displayName, 'user_self_profile_updated', 'user', target.id, displayName, JSON.stringify({ updatedFields: Object.keys(updates) }), now)
       .run();
 
     return { status: 200, json: { success: true } };
@@ -263,17 +275,22 @@ export async function handleApiRequest(
       cleanAdminParam === 'tnconsultoria19@gmail.com' ||
       cleanAdminParam === 'olisbel@gmail.com' ||
       cleanAdminParam === 'admin@webcraft.com' ||
+      String(admin?.email || '').toLowerCase() === 'tnconsultoria19@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'olisbel@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'admin@webcraft.com' ||
       String(admin?.role || '').toLowerCase() === 'admin';
 
     if (!isRecognizedAdmin) {
       return { status: 403, json: { error: 'Unauthorized.' } };
     }
 
-    const target = await db.prepare('SELECT * FROM users WHERE id = ?').bind(targetUid).first();
+    const cleanTargetParam = String(targetUid || '').trim().toLowerCase();
+    const target = await db.prepare('SELECT * FROM users WHERE id = ? OR LOWER(email) = ?').bind(targetUid, cleanTargetParam).first();
     if (!target) return { status: 404, json: { error: 'Target user not found.' } };
 
     const now = new Date().toISOString();
-    const displayName = updates.displayName !== undefined ? updates.displayName : target.displayName;
+    const email = (updates.email !== undefined && updates.email.trim()) ? updates.email.trim() : target.email;
+    const displayName = (updates.displayName !== undefined && updates.displayName.trim()) ? updates.displayName.trim() : target.displayName;
     const phone = updates.phone !== undefined ? updates.phone : target.phone;
     const bio = updates.bio !== undefined ? updates.bio : target.bio;
     const avatarUrl = updates.avatarUrl !== undefined ? updates.avatarUrl : target.avatarUrl;
@@ -283,15 +300,15 @@ export async function handleApiRequest(
       ? updates.storedPassword
       : (updates.password !== undefined && updates.password !== '' ? updates.password : target.storedPassword);
 
-    await db.prepare('UPDATE users SET displayName = ?, phone = ?, bio = ?, avatarUrl = ?, role = ?, status = ?, storedPassword = ? WHERE id = ?')
-      .bind(displayName, phone, bio, avatarUrl, role, status, storedPassword, targetUid)
+    await db.prepare('UPDATE users SET email = ?, displayName = ?, phone = ?, bio = ?, avatarUrl = ?, role = ?, status = ?, storedPassword = ? WHERE id = ? OR LOWER(email) = ?')
+      .bind(email, displayName, phone, bio, avatarUrl, role, status, storedPassword, target.id, target.email.toLowerCase())
       .run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), adminUserId, admin?.displayName || 'Admin', 'user_profile_edited_by_admin', 'user', targetUid, displayName, JSON.stringify({ previous: target, updated: updates, reason: reason || 'Admin profile edit' }), now)
+      .bind(genId('act'), adminUserId, admin?.displayName || 'Admin', 'user_profile_edited_by_admin', 'user', target.id, displayName, JSON.stringify({ previous: target, updated: updates, reason: reason || 'Admin profile edit' }), now)
       .run();
 
-    const updatedUser = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users WHERE id = ?').bind(targetUid).first();
+    const updatedUser = await db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, storedPassword, createdAt FROM users WHERE id = ? OR LOWER(email) = ?').bind(target.id, target.email.toLowerCase()).first();
     return { status: 200, json: { success: true, user: updatedUser } };
   }
 
@@ -304,6 +321,9 @@ export async function handleApiRequest(
       cleanAdminParam === 'tnconsultoria19@gmail.com' ||
       cleanAdminParam === 'olisbel@gmail.com' ||
       cleanAdminParam === 'admin@webcraft.com' ||
+      String(admin?.email || '').toLowerCase() === 'tnconsultoria19@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'olisbel@gmail.com' ||
+      String(admin?.email || '').toLowerCase() === 'admin@webcraft.com' ||
       String(admin?.role || '').toLowerCase() === 'admin';
 
     if (!isRecognizedAdmin) {
@@ -314,13 +334,14 @@ export async function handleApiRequest(
       return { status: 400, json: { error: 'New password cannot be empty.' } };
     }
 
-    const target = await db.prepare('SELECT * FROM users WHERE id = ?').bind(targetUid).first();
+    const cleanTargetParam = String(targetUid || '').trim().toLowerCase();
+    const target = await db.prepare('SELECT * FROM users WHERE id = ? OR LOWER(email) = ?').bind(targetUid, cleanTargetParam).first();
     if (!target) return { status: 404, json: { error: 'Target user not found.' } };
 
-    await db.prepare('UPDATE users SET storedPassword = ? WHERE id = ?').bind(newPassword.trim(), targetUid).run();
+    await db.prepare('UPDATE users SET storedPassword = ? WHERE id = ? OR LOWER(email) = ?').bind(newPassword.trim(), target.id, target.email.toLowerCase()).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), adminUserId, admin?.displayName || 'Admin', 'password_reset_by_admin', 'user', targetUid, target.displayName, JSON.stringify({ targetEmail: target.email }), new Date().toISOString())
+      .bind(genId('act'), adminUserId, admin?.displayName || 'Admin', 'password_reset_by_admin', 'user', target.id, target.displayName, JSON.stringify({ targetEmail: target.email }), new Date().toISOString())
       .run();
 
     return { status: 200, json: { success: true, storedPassword: newPassword.trim() } };

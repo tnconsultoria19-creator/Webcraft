@@ -704,6 +704,9 @@ export function App() {
               onSelectLead={(id) => setSelectedLeadId(id)}
               onOpenQuickAdd={() => setIsQuickAddOpen(true)}
               onDeleteLead={handleDeleteLead}
+              onOpenTeamPerformance={() => setIsTeamPerformanceOpen(true)}
+              onOpenPersonalEarnings={() => setIsPersonalEarningsOpen(true)}
+              onOpenAdminSettings={() => setIsAdminSettingsOpen(true)}
             />
           )}
 
