@@ -628,7 +628,7 @@ export async function handleApiRequest(
       return { status: 500, json: { error: 'R2 storage is not configured.' } };
     }
 
-    const match = fileOrBase64.match(/^data:(image\\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    const match = fileOrBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
     if (!match) {
       return { status: 400, json: { error: 'Invalid image data URL.' } };
     }
