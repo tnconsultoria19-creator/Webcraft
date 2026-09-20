@@ -22,25 +22,126 @@ export const PersonalEarningsModal: React.FC<PersonalEarningsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
 
+    let mounted = true;
+
+    const loadInitialData = async () => {
+      setIsLoading(true);
+
+      const fetchJson = async <T,>(url: string): Promise<T> => {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const response = await fetch(url, { signal: controller.signal });
+          if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(
+              (errorBody as any)?.error || `Request failed: ${response.status}`
+            );
+          }
+          return await response.json() as T;
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
+      };
+
+      const [financeResult, tasksResult] = await Promise.allSettled([
+        fetchJson<FinancialRecord[]>('/api/financial-records'),
+        fetchJson<Task[]>('/api/tasks')
+      ]);
+
+      if (!mounted) return;
+
+      const uEmailLower = String(currentUser.email || '').toLowerCase();
+      const uId = String(currentUser.id || '');
+
+      if (financeResult.status === 'fulfilled' && Array.isArray(financeResult.value)) {
+        const myRecords = financeResult.value.filter((r) => {
+          if (!r) return false;
+          const rUserId = String(r.userId || '');
+          const rUserEmail = String((r as any).userEmail || '');
+          return (
+            (uId !== '' && rUserId === uId) ||
+            (uEmailLower !== '' && rUserId.toLowerCase() === uEmailLower) ||
+            (uEmailLower !== '' && rUserEmail.toLowerCase() === uEmailLower)
+          );
+        });
+        setFinancialRecords(myRecords);
+      }
+
+      if (tasksResult.status === 'fulfilled' && Array.isArray(tasksResult.value)) {
+        const myCompleted = tasksResult.value.filter((t) => {
+          if (!t) return false;
+          const assignedTo = String(t.assignedTo || '');
+          const createdBy = String(t.createdBy || '');
+          return (
+            ((uId !== '' && assignedTo === uId) ||
+              (uId !== '' && createdBy === uId) ||
+              (uEmailLower !== '' && assignedTo.toLowerCase() === uEmailLower)) &&
+            t.status === 'completed'
+          );
+        });
+        setTasks(myCompleted);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadInitialData();
+
     const unsubFinance = subscribeToFinancialRecords((records) => {
-      const myRecords = records.filter((r) => r.userId === currentUser.id);
+      if (!mounted) return;
+      if (!Array.isArray(records)) {
+        setFinancialRecords([]);
+        setIsLoading(false);
+        return;
+      }
+      const uEmailLower = String(currentUser.email || '').toLowerCase();
+      const uId = String(currentUser.id || '');
+      const myRecords = records.filter((r) => {
+        if (!r) return false;
+        const rUserId = String(r.userId || '');
+        const rUserEmail = String((r as any).userEmail || '');
+        return (
+          (uId !== '' && rUserId === uId) ||
+          (uEmailLower !== '' && rUserId.toLowerCase() === uEmailLower) ||
+          (uEmailLower !== '' && rUserEmail.toLowerCase() === uEmailLower)
+        );
+      });
       setFinancialRecords(myRecords);
       setIsLoading(false);
     });
 
     const unsubTasks = subscribeToTasks((tList) => {
-      const myCompleted = tList.filter(
-        (t) => (t.assignedTo === currentUser.id || t.createdBy === currentUser.id) && t.status === 'completed'
-      );
+      if (!mounted) return;
+      if (!Array.isArray(tList)) {
+        setTasks([]);
+        setIsLoading(false);
+        return;
+      }
+      const uEmailLower = String(currentUser.email || '').toLowerCase();
+      const uId = String(currentUser.id || '');
+      const myCompleted = tList.filter((t) => {
+        if (!t) return false;
+        const assignedTo = String(t.assignedTo || '');
+        const createdBy = String(t.createdBy || '');
+        return (
+          ((uId !== '' && assignedTo === uId) ||
+            (uId !== '' && createdBy === uId) ||
+            (uEmailLower !== '' && assignedTo.toLowerCase() === uEmailLower)) &&
+          t.status === 'completed'
+        );
+      });
       setTasks(myCompleted);
       setIsLoading(false);
     });
 
     return () => {
+      mounted = false;
       unsubFinance();
       unsubTasks();
     };
-  }, [isOpen, currentUser.id]);
+  }, [isOpen, currentUser.id, currentUser.email]);
 
   if (!isOpen) return null;
 
