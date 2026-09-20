@@ -104,6 +104,19 @@ Write a concise, professional, and ultra-persuasive response or outreach draft. 
       }
     }
 
+    // Serve lead image files directly from Cloudflare R2.
+    if (pathname.startsWith('/api/uploads/file/') && request.method === 'GET') {
+      const objectKey = decodeURIComponent(pathname.slice('/api/uploads/file/'.length));
+      if (!env.BUCKET) return new Response('R2 storage is not configured.', { status: 500 });
+      const object = await env.BUCKET.get(objectKey);
+      if (!object) return new Response('File not found.', { status: 404 });
+      const headers = new Headers(corsHeaders);
+      object.writeHttpMetadata(headers);
+      headers.set('etag', object.httpEtag);
+      headers.set('Cache-Control', 'public, max-age=31536000, immutable');
+      return new Response(object.body, { headers });
+    }
+
     // 2. SERVE STATIC FRONTEND ASSETS AND FALLBACK (SPA ROUTING)
     if (env.ASSETS) {
       try {
