@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Users, DollarSign, Shield, Download, RefreshCw } from 'lucide-react';
+import { X, Users, Download, AlertCircle } from 'lucide-react';
 import { User, Task, FinancialRecord } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import { subscribeToUsers, subscribeToTasks, subscribeToFinancialRecords } from '../../lib/firestoreService';
@@ -19,42 +19,114 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
   const [tasks, setTasks] = useState<Task[]>([]);
   const [financialRecords, setFinancialRecords] = useState<FinancialRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
 
-    // Background ensure team is primed
-    fetch('/api/admin/reseed-team', { method: 'POST' }).catch(() => {});
+    let mounted = true;
 
-    const unsubUsers = subscribeToUsers((uList) => {
-      if (Array.isArray(uList) && uList.length > 0) {
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      setLoadError('');
+
+      const fetchJson = async <T,>(url: string): Promise<T> => {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+
+        try {
+          const response = await fetch(url, { signal: controller.signal });
+          if (!response.ok) {
+            const errorBody = await response.json().catch(() => ({}));
+            throw new Error(
+              (errorBody as any)?.error || `Request failed: ${response.status}`
+            );
+          }
+          return await response.json() as T;
+        } finally {
+          window.clearTimeout(timeoutId);
+        }
+      };
+
+      const [usersResult, tasksResult, financeResult] = await Promise.allSettled([
+        fetchJson<User[]>('/api/users'),
+        fetchJson<Task[]>('/api/tasks'),
+        fetchJson<FinancialRecord[]>('/api/financial-records')
+      ]);
+
+      if (!mounted) return;
+
+      const errors: string[] = [];
+
+      if (usersResult.status === 'fulfilled' && Array.isArray(usersResult.value)) {
         setUsers((prev) => {
-          const list = [...uList];
+          const list = [...usersResult.value];
           for (const core of CORE_TEAM_USERS) {
-            if (!list.some((u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id)) {
+            if (!list.some(
+              (u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id
+            )) {
               list.push(core);
             }
           }
           return list;
         });
+      } else if (usersResult.status === 'rejected') {
+        errors.push('team members');
       }
+
+      if (tasksResult.status === 'fulfilled' && Array.isArray(tasksResult.value)) {
+        setTasks(tasksResult.value);
+      } else if (tasksResult.status === 'rejected') {
+        errors.push('tasks');
+      }
+
+      if (financeResult.status === 'fulfilled' && Array.isArray(financeResult.value)) {
+        setFinancialRecords(financeResult.value);
+      } else if (financeResult.status === 'rejected') {
+        errors.push('financial records');
+      }
+
+      setIsLoading(false);
+
+      if (errors.length > 0) {
+        setLoadError(
+          `Some team performance data could not be loaded: ${errors.join(', ')}.`
+        );
+      }
+    };
+
+    void loadInitialData();
+
+    const unsubUsers = subscribeToUsers((uList) => {
+      if (!mounted || !Array.isArray(uList) || uList.length === 0) return;
+
+      setUsers((prev) => {
+        const list = [...uList];
+        for (const core of CORE_TEAM_USERS) {
+          if (!list.some(
+            (u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id
+          )) {
+            list.push(core);
+          }
+        }
+        return list;
+      });
     });
 
     const unsubTasks = subscribeToTasks((tList) => {
-      if (Array.isArray(tList)) {
-        setTasks(tList);
-        setIsLoading(false);
-      }
+      if (!mounted || !Array.isArray(tList)) return;
+      setTasks(tList);
+      setIsLoading(false);
     });
 
     const unsubFinance = subscribeToFinancialRecords((records) => {
-      if (Array.isArray(records)) {
-        setFinancialRecords(records);
-      }
+      if (!mounted || !Array.isArray(records)) return;
+      setFinancialRecords(records);
       setIsLoading(false);
     });
 
     return () => {
+      mounted = false;
       unsubUsers();
       unsubTasks();
       unsubFinance();
@@ -76,10 +148,14 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
 
     const linksCreatedCount = earnedRecords.filter((r) => r.action === 'LINK_CREATED').length;
     const messagesSentCount = earnedRecords.filter((r) => r.action === 'MESSAGE_SENT').length;
-    const dealBonusCount = earnedRecords.filter((r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS').length;
+    const dealBonusCount = earnedRecords.filter(
+      (r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS'
+    ).length;
 
     const userCompletedTasks = tasks.filter(
-      (t) => (t.assignedTo === u.id || t.createdBy === u.id || t.assignedTo === u.email) && t.status === 'completed'
+      (t) =>
+        (t.assignedTo === u.id || t.createdBy === u.id || t.assignedTo === u.email) &&
+        t.status === 'completed'
     );
 
     return {
@@ -96,7 +172,7 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/45 backdrop-blur-xs font-['Poppins']">
       <div className="bg-white border border-[#DDD8CE] rounded-3xl shadow-2xl max-w-5xl xl:max-w-6xl w-full text-[#292A29] overflow-hidden max-h-[92vh] flex flex-col">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 bg-[#FAF7F2] border-b border-[#E5DFD5]">
           <div className="flex items-center gap-3">
@@ -127,56 +203,67 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
         {/* Content Table */}
         <div className="p-6 overflow-x-auto text-xs">
           {isLoading ? (
-            <div className="py-8 text-center text-[#68645D] font-bold animate-pulse">Loading team performance data...</div>
+            <div className="py-8 text-center text-[#68645D] font-bold animate-pulse">
+              Loading team performance data...
+            </div>
           ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-[#FAF7F2] border-b border-[#E5DFD5] text-[#68645D] uppercase text-[10px] tracking-wider font-extrabold">
-                  <th className="py-3 px-4">Team Member</th>
-                  <th className="py-3 px-4 text-center">Links Created (+R1)</th>
-                  <th className="py-3 px-4 text-center">Messages Sent (+R0.50)</th>
-                  <th className="py-3 px-4 text-center">Deal Bonuses</th>
-                  <th className="py-3 px-4 text-center font-extrabold text-[#D9A441]">Potential Bonuses</th>
-                  <th className="py-3 px-4 text-right font-extrabold text-[#4F765C]">Earned Wallet</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#F0EAE0]">
-                {teamStats.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-8 text-center text-[#969188]">
-                      No team members found.
-                    </td>
+            <>
+              {loadError && (
+                <div className="mb-4 flex items-start gap-2 rounded-2xl border border-[#E8DCB8] bg-[#FFF9E6] px-4 py-3 text-[11px] text-[#91651B]">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{loadError} The available data is still shown below and will continue refreshing.</span>
+                </div>
+              )}
+
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-[#FAF7F2] border-b border-[#E5DFD5] text-[#68645D] uppercase text-[10px] tracking-wider font-extrabold">
+                    <th className="py-3 px-4">Team Member</th>
+                    <th className="py-3 px-4 text-center">Links Created (+R1)</th>
+                    <th className="py-3 px-4 text-center">Messages Sent (+R0.50)</th>
+                    <th className="py-3 px-4 text-center">Deal Bonuses</th>
+                    <th className="py-3 px-4 text-center font-extrabold text-[#D9A441]">Potential Bonuses</th>
+                    <th className="py-3 px-4 text-right font-extrabold text-[#4F765C]">Earned Wallet</th>
                   </tr>
-                ) : (
-                  teamStats.map((item) => (
-                    <tr key={item.user.id} className="hover:bg-[#FAF7F2] transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={item.user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
-                            alt={item.user.displayName}
-                            className="w-7 h-7 rounded-full object-cover border border-[#DDD8CE]"
-                          />
-                          <div>
-                            <div className="font-bold text-[#121624]">{item.user.displayName}</div>
-                            <div className="text-[10px] text-[#245F6B] uppercase font-bold">{item.user.role}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-700">{item.linksCreatedCount}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-700">{item.messagesSentCount}</td>
-                      <td className="py-3 px-4 text-center font-medium text-slate-700">{item.dealBonusCount}</td>
-                      <td className="py-3 px-4 text-center font-bold text-[#91651B]">
-                        {formatCurrency(item.totalPotential)}
-                      </td>
-                      <td className="py-3 px-4 text-right font-extrabold text-[#4F765C] text-sm">
-                        {formatCurrency(item.totalEarned)}
+                </thead>
+                <tbody className="divide-y divide-[#F0EAE0]">
+                  {teamStats.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-[#969188]">
+                        No team members found.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    teamStats.map((item) => (
+                      <tr key={item.user.id} className="hover:bg-[#FAF7F2] transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={item.user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'}
+                              alt={item.user.displayName}
+                              className="w-7 h-7 rounded-full object-cover border border-[#DDD8CE]"
+                            />
+                            <div>
+                              <div className="font-bold text-[#121624]">{item.user.displayName}</div>
+                              <div className="text-[10px] text-[#245F6B] uppercase font-bold">{item.user.role}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-700">{item.linksCreatedCount}</td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-700">{item.messagesSentCount}</td>
+                        <td className="py-3 px-4 text-center font-medium text-slate-700">{item.dealBonusCount}</td>
+                        <td className="py-3 px-4 text-center font-bold text-[#91651B]">
+                          {formatCurrency(item.totalPotential)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-extrabold text-[#4F765C] text-sm">
+                          {formatCurrency(item.totalEarned)}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </>
           )}
         </div>
 
