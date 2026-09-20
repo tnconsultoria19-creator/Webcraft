@@ -563,7 +563,7 @@ export async function handleApiRequest(
       db.prepare('SELECT * FROM outreachAttempts WHERE leadId = ? ORDER BY sentAt DESC').bind(leadId).all(),
       db.prepare('SELECT * FROM leadNotes WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
       db.prepare('SELECT * FROM images WHERE leadId = ? ORDER BY createdAt DESC').bind(leadId).all(),
-      db.prepare('SELECT * FROM users ORDER BY displayName ASC').bind().all()
+      db.prepare('SELECT id, email, displayName, role, status, avatarUrl, phone, bio, createdAt FROM users ORDER BY displayName ASC').bind().all()
     ]);
 
     if (!lead) return { status: 404, json: { error: 'Lead not found.' } };
