@@ -214,8 +214,12 @@ export function parseChatGPTPackage(rawInput: string): ParseResult {
       const section1 = text.substring(s1HeaderMatch.index + s1HeaderMatch[0].length, end);
       geminiInstruction = section1.replace(/[\r\n]+[-=_]{3,}[\r\n]*$/, '').trim();
     } else if (!jsonExtract) {
-      // If the user pasted only a Gemini instruction with no header, accept the whole input.
-      geminiInstruction = text;
+      // A short single-line value is more likely to be the Business Name / Project Name.
+      // Longer multi-line content is treated as a Gemini implementation instruction.
+      const looksLikeStandaloneName = !text.includes('\n') && text.length <= 160;
+      if (!looksLikeStandaloneName) {
+        geminiInstruction = text;
+      }
     }
   }
 
