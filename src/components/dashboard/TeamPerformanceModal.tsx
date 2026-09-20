@@ -43,6 +43,7 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
     const unsubTasks = subscribeToTasks((tList) => {
       if (Array.isArray(tList)) {
         setTasks(tList);
+        setIsLoading(false);
       }
     });
 
