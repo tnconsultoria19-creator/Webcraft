@@ -145,6 +145,6 @@ for (const a of activities) {
 }
 
 lines.push('COMMIT;','PRAGMA foreign_keys=ON;');
-fs.writeFileSync(outFile, lines.join('\\n') + '\\n');
+fs.writeFileSync(outFile, lines.join('\n') + '\n');
 console.log(`Generated ${outFile}`);
 console.log(`Users: ${users.length} | Leads: ${leads.length} | Tasks: ${tasks.length} | Activities: ${activities.length}`);
