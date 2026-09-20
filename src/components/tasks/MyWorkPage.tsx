@@ -13,7 +13,6 @@ import {
 import { Task, User } from '../../types';
 import { formatCurrency } from '../../lib/utils';
 import {
-  subscribeToTasks,
   grabTaskAtomic,
   completeTaskAtomic,
   adminOverrideTask
@@ -21,6 +20,7 @@ import {
 
 interface MyWorkPageProps {
   currentUser: User;
+  tasks: Task[];
   onSelectLead: (leadId: string) => void;
   onWorkUpdated: () => void;
   viewingAsUser?: User | null;
@@ -28,12 +28,12 @@ interface MyWorkPageProps {
 
 export const MyWorkPage: React.FC<MyWorkPageProps> = ({
   currentUser,
+  tasks,
   onSelectLead,
   onWorkUpdated,
   viewingAsUser
 }) => {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading] = useState(false);
   const [grabLoadingId, setGrabLoadingId] = useState<string | null>(null);
   const [completeLoadingId, setCompleteLoadingId] = useState<string | null>(null);
   const [completeNotes, setCompleteNotes] = useState<Record<string, string>>({});
@@ -47,14 +47,7 @@ export const MyWorkPage: React.FC<MyWorkPageProps> = ({
 
   const activeUser = viewingAsUser || currentUser;
 
-  useEffect(() => {
-    const unsub = subscribeToTasks((taskList) => {
-      setTasks(taskList);
-      setIsLoading(false);
-    });
 
-    return () => unsub();
-  }, []);
 
   const handleGrabTask = async (taskId: string) => {
     setGrabLoadingId(taskId);
