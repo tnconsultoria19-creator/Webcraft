@@ -315,6 +315,23 @@ export function App() {
   const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false);
 
   // Session state is fully managed by Cloudflare D1/localStorage.
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        if (localStorage.getItem('webcraft_user_id')) {
+          const res = await api.getMe();
+          setCurrentUser(res.user);
+        }
+      } catch (error) {
+        console.warn('Could not restore WebCraft session:', error);
+        localStorage.removeItem('webcraft_user_id');
+        setCurrentUser(null);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    restoreSession();
+  }, []);
 
   // Real-time data polling when user is logged in
   useEffect(() => {
