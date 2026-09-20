@@ -176,10 +176,15 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
       setUsersList((previous) => {
         const base = previous && previous.length > 0 ? previous : CORE_TEAM_USERS;
         const previousById = new Map<string, UserType>(base.map((u) => [u.id, u]));
-        const previousByEmail = new Map<string, UserType>(base.map((u) => [u.email.toLowerCase(), u]));
+        const previousByEmail = new Map<string, UserType>(
+          base
+            .filter((u) => u.email)
+            .map((u) => [String(u.email).toLowerCase(), u])
+        );
 
         const updated = uList.map((user) => {
-          const prev = previousById.get(user.id) || previousByEmail.get(user.email.toLowerCase());
+          const userEmailLower = String(user.email || '').toLowerCase();
+          const prev = previousById.get(user.id) || (userEmailLower !== '' ? previousByEmail.get(userEmailLower) : undefined);
           const preservedPassword =
             user.storedPassword !== undefined && user.storedPassword !== null && user.storedPassword !== ''
               ? user.storedPassword
@@ -202,7 +207,11 @@ export const AdminSettingsModal: React.FC<AdminSettingsModalProps> = ({
 
         // Ensure all 5 core team users are in the list
         for (const core of CORE_TEAM_USERS) {
-          if (!updated.some((u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id)) {
+          const coreEmailLower = String(core.email || '').toLowerCase();
+          if (!updated.some((u) => {
+            const uEmailLower = String(u.email || '').toLowerCase();
+            return (uEmailLower !== '' && uEmailLower === coreEmailLower) || u.id === core.id;
+          })) {
             updated.push(core);
           }
         }

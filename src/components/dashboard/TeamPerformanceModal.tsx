@@ -62,8 +62,12 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
         setUsers((prev) => {
           const list = [...usersResult.value];
           for (const core of CORE_TEAM_USERS) {
+            const coreEmailLower = String(core.email || '').toLowerCase();
             if (!list.some(
-              (u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id
+              (u) => {
+                const uEmailLower = String(u.email || '').toLowerCase();
+                return (uEmailLower !== '' && uEmailLower === coreEmailLower) || u.id === core.id;
+              }
             )) {
               list.push(core);
             }
@@ -103,8 +107,12 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
       setUsers((prev) => {
         const list = [...uList];
         for (const core of CORE_TEAM_USERS) {
+          const coreEmailLower = String(core.email || '').toLowerCase();
           if (!list.some(
-            (u) => u.email.toLowerCase() === core.email.toLowerCase() || u.id === core.id
+            (u) => {
+              const uEmailLower = String(u.email || '').toLowerCase();
+              return (uEmailLower !== '' && uEmailLower === coreEmailLower) || u.id === core.id;
+            }
           )) {
             list.push(core);
           }
@@ -137,9 +145,17 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
 
   // Build team performance map from users, tasks, and real financial records
   const teamStats = users.map((u) => {
-    const userRecords = financialRecords.filter(
-      (r) => r.userId === u.id || r.userId === u.email || (r as any).userEmail === u.email
-    );
+    const uEmailLower = String(u.email || '').toLowerCase();
+    const uId = String(u.id || '');
+    const userRecords = financialRecords.filter((r) => {
+      const rUserId = String(r.userId || '');
+      const rUserEmail = String((r as any).userEmail || '');
+      return (
+        (uId !== '' && rUserId === uId) ||
+        (uEmailLower !== '' && rUserId.toLowerCase() === uEmailLower) ||
+        (uEmailLower !== '' && rUserEmail.toLowerCase() === uEmailLower)
+      );
+    });
     const earnedRecords = userRecords.filter((r) => r.status === 'earned');
     const potentialRecords = userRecords.filter((r) => r.status === 'potential');
 
@@ -152,11 +168,16 @@ export const TeamPerformanceModal: React.FC<TeamPerformanceModalProps> = ({
       (r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS'
     ).length;
 
-    const userCompletedTasks = tasks.filter(
-      (t) =>
-        (t.assignedTo === u.id || t.createdBy === u.id || t.assignedTo === u.email) &&
+    const userCompletedTasks = tasks.filter((t) => {
+      const assignedTo = String(t.assignedTo || '');
+      const createdBy = String(t.createdBy || '');
+      return (
+        ((uId !== '' && assignedTo === uId) ||
+          (uId !== '' && createdBy === uId) ||
+          (uEmailLower !== '' && assignedTo.toLowerCase() === uEmailLower)) &&
         t.status === 'completed'
-    );
+      );
+    });
 
     return {
       user: u,
