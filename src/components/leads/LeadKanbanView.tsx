@@ -3,7 +3,7 @@ import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTri
 import { Lead, LeadStage } from '../../types';
 import { formatTimeAgo, formatDateTime, formatExternalUrl, getNextStage, getPreviousStage } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
-import { LeadDuplicateReport } from '../../lib/searchUtils';
+import { findLeadDuplicates } from '../../lib/searchUtils';
 import { ConfirmModal } from '../common/ConfirmModal';
 
 interface LeadKanbanViewProps {
@@ -11,7 +11,6 @@ interface LeadKanbanViewProps {
   onSelectLead: (leadId: string) => void;
   onUpdateStage: (leadId: string, newStage: LeadStage) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
-  duplicateReports?: Map<string, LeadDuplicateReport>;
 }
 
 const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
@@ -28,8 +27,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
   leads,
   onSelectLead,
   onUpdateStage,
-  onDeleteLead,
-  duplicateReports
+  onDeleteLead
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   return (
@@ -66,7 +64,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                   const prevStage = getPreviousStage(lead.stage);
                   const nextStage = getNextStage(lead.stage);
                   const country = getCountryByName(lead.country || lead.city);
-                  const dupReport = duplicateReports?.get(lead.id);
+                  const dupReport = findLeadDuplicates(lead, leads);
 
                   return (
                     <div
@@ -112,13 +110,13 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           <h4 className="font-bold text-[#292A29] text-xs group-hover:text-[#245F6B] transition-colors line-clamp-1">
                             {lead.name}
                           </h4>
-                          {dupReport?.hasDuplicates && (
+                          {dupReport.hasDuplicates && (
                             <span
                               className="text-[10px] font-semibold text-[#91651B] bg-[#D9A441]/15 px-1.5 py-0.5 rounded-full flex items-center gap-1 shrink-0"
-                              title={dupReport?.matches.map(m => m.reason).join('; ') || ''}
+                              title={dupReport.matches.map(m => m.reason).join('; ')}
                             >
                               <AlertTriangle className="w-3 h-3 text-[#D9A441]" />
-                              <span>Dup ({dupReport?.duplicateCount || 0})</span>
+                              <span>Dup ({dupReport.duplicateCount})</span>
                             </span>
                           )}
                         </div>
