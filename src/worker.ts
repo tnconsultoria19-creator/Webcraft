@@ -1,5 +1,6 @@
 import { handleApiRequest } from './db/apiHandlers';
 import { GoogleGenAI } from '@google/genai';
+import { ensureD1Schema } from './db/d1Init';
 
 interface Env {
   DB: any;
@@ -10,6 +11,7 @@ interface Env {
 
 export default {
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
+    await ensureD1Schema(env.DB);
     const url = new URL(request.url);
     const { pathname, search } = url;
 
