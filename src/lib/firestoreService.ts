@@ -21,34 +21,43 @@ export function cleanFirestoreData<T extends Record<string, any>>(obj: T): Parti
 }
 
 // Polling Helper
-function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 3000, key?: string) {
+function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 8000, key?: string) {
   let active = true;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
   const poll = async () => {
+    if (!active) return;
+
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('Fetch failed for ' + url);
       const data = await res.json() as any;
-      if (active) {
-        if (key && data[key] !== undefined) {
-          callback(data[key]);
-        } else {
-          callback(data);
-        }
+      if (!active) return;
+
+      if (key && data[key] !== undefined) {
+        callback(data[key]);
+      } else {
+        callback(data);
       }
     } catch (err) {
-      console.warn('Polling error on ' + url + ':', err);
+      if (active) console.warn('Polling error on ' + url + ':', err);
+    } finally {
+      if (active) {
+        timer = setTimeout(poll, intervalMs);
+      }
     }
   };
-  poll();
-  const interval = setInterval(poll, intervalMs);
+
+  void poll();
+
   return () => {
     active = false;
-    clearInterval(interval);
+    if (timer) clearTimeout(timer);
   };
 }
 
 export function subscribeToUsers(callback: (users: User[]) => void) {
-  return createPoller('/api/users', callback);
+  return createPoller('/api/users', callback, 8000);
 }
 
 export async function getUserProfile(uid: string): Promise<User | null> {
@@ -129,19 +138,19 @@ export async function updateOwnUserProfile(
 }
 
 export function subscribeToLeads(callback: (leads: Lead[]) => void) {
-  return createPoller('/api/leads', callback, 3000, 'leads');
+  return createPoller('/api/leads', callback, 8000, 'leads');
 }
 
 export function subscribeToTasks(callback: (tasks: Task[]) => void) {
-  return createPoller('/api/tasks', callback, 3000);
+  return createPoller('/api/tasks', callback, 8000);
 }
 
 export function subscribeToOutreach(callback: (outreach: OutreachAttempt[]) => void) {
-  return createPoller('/api/outreach', callback, 3000);
+  return createPoller('/api/outreach', callback, 8000);
 }
 
 export function subscribeToActivities(callback: (activities: ActivityLog[]) => void) {
-  return createPoller('/api/activities', callback, 3000);
+  return createPoller('/api/activities', callback, 8000);
 }
 
 export async function createLeadInFirestore(
@@ -300,7 +309,7 @@ export async function releaseTaskAtomic(taskId: string, userId: string, userName
 }
 
 export function subscribeToLeadNotes(leadId: string, callback: (notes: LeadNote[]) => void) {
-  return createPoller(`/api/leads/${leadId}/notes`, callback, 3000, 'notes');
+  return createPoller(`/api/leads/${leadId}/notes`, callback, 8000, 'notes');
 }
 
 export async function addLeadNoteInFirestore(
@@ -333,7 +342,7 @@ export async function adminOverrideTask(
 }
 
 export function subscribeToImages(leadId: string, callback: (images: ImageAsset[]) => void) {
-  return createPoller(`/api/leads/${leadId}/images`, callback, 3000, 'images');
+  return createPoller(`/api/leads/${leadId}/images`, callback, 8000, 'images');
 }
 
 export async function addExternalImageUrlToLead(
@@ -512,7 +521,7 @@ export async function evaluateAndAwardDealBonuses(leadId: string, userId: string
 }
 
 export function subscribeToFinancialRecords(callback: (records: FinancialRecord[]) => void): () => void {
-  return createPoller('/api/financial-records', callback);
+  return createPoller('/api/financial-records', callback, 8000);
 }
 
 export async function adminReverseFinancialRecord(recordId: string, reason: string, adminUser: User): Promise<void> {
