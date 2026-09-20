@@ -644,7 +644,7 @@ export async function handleApiRequest(
       await db.prepare(`
         INSERT INTO financialRecords (id, userId, userName, leadId, leadName, action, amount, currency, timestamp, earningType, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(recordId, lead.linkCreatorId, lead.linkCreatorName || 'Unknown', leadId, lead.name, 'LINK_SUCCESS_BONUS', 100.0, 'ZAR', now, 'success_bonus', 'earned').run();
+      `).bind(recordId, lead.linkCreatorId, lead.linkCreatorName || 'Unknown', leadId, lead.name, 'LINK_SUCCESS_BONUS', 50.0, 'ZAR', now, 'success_bonus', 'earned').run();
 
       await db.prepare('UPDATE leads SET linkBonusAwarded = 1 WHERE id = ?').bind(leadId).run();
     }
@@ -655,7 +655,7 @@ export async function handleApiRequest(
       await db.prepare(`
         INSERT INTO financialRecords (id, userId, userName, leadId, leadName, action, amount, currency, timestamp, earningType, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(recordId, lead.messageSenderId, lead.messageSenderName || 'Unknown', leadId, lead.name, 'MESSAGE_SUCCESS_BONUS', 50.0, 'ZAR', now, 'success_bonus', 'earned').run();
+      `).bind(recordId, lead.messageSenderId, lead.messageSenderName || 'Unknown', leadId, lead.name, 'MESSAGE_SUCCESS_BONUS', 25.0, 'ZAR', now, 'success_bonus', 'earned').run();
 
       await db.prepare('UPDATE leads SET messageBonusAwarded = 1 WHERE id = ?').bind(leadId).run();
     }
@@ -682,7 +682,7 @@ export async function handleApiRequest(
     await db.prepare(`
       INSERT INTO financialRecords (id, userId, userName, leadId, leadName, action, amount, currency, timestamp, earningType, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(recordId, userId, userName, leadId, lead.name, 'LINK_CREATED', 20.0, 'ZAR', now, 'action', 'earned').run();
+    `).bind(recordId, userId, userName, leadId, lead.name, 'LINK_CREATED', 1.0, 'ZAR', now, 'action', 'earned').run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(genId('act'), userId, userName, 'live_link_attached', 'lead', leadId, lead.name, now)
