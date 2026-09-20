@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "webcraft-studio",
+  "name": "webcraft",
   "main": "src/worker.ts",
   "compatibility_date": "2025-02-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -17,8 +17,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "webcraft-db",
-      "database_id": "8e364e62-c0da-4bb7-bc45-e10269382f1b"
+      "database_name": "crm_db",
+      "database_id": "dbe78523-f6db-44df-8322-8f8e378ad577"
     }
   ],
   "r2_buckets": [
