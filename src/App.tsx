@@ -693,6 +693,10 @@ export function App() {
           {currentView === 'dashboard' && (
             <MainDashboard
               currentUser={currentUser}
+              leads={leads}
+              tasks={tasks}
+              outreach={outreach}
+              activities={activities}
               onSelectLead={(id) => setSelectedLeadId(id)}
               onOpenQuickAdd={() => setIsQuickAddOpen(true)}
               onDeleteLead={handleDeleteLead}
