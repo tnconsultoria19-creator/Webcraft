@@ -246,12 +246,15 @@ export async function handleApiRequest(
       channelsByLead.set(channel.leadId, list);
     }
 
-    const imageCounts = new Map<string, number>(
-      ((imageCountResult.results || []) as any[]).map((row) => [row.leadId, Number(row.imagesCount || 0)])
-    );
-    const openTaskCounts = new Map<string, number>(
-      ((taskCountResult.results || []) as any[]).map((row) => [row.leadId, Number(row.openTasksCount || 0)])
-    );
+    const imageCounts = new Map<string, number>();
+    for (const row of (imageCountResult.results || []) as any[]) {
+      imageCounts.set(row.leadId, Number(row.imagesCount || 0));
+    }
+
+    const openTaskCounts = new Map<string, number>();
+    for (const row of (taskCountResult.results || []) as any[]) {
+      openTaskCounts.set(row.leadId, Number(row.openTasksCount || 0));
+    }
 
     const fullLeads = (leadResult.results || []).map((l: any) => ({
       ...l,
