@@ -50,9 +50,9 @@ export const PersonalEarningsModal: React.FC<PersonalEarningsModalProps> = ({
   const totalEarnedAmount = earnedRecords.reduce((sum, r) => sum + (r.amount || 0), 0);
   const totalPotentialAmount = potentialRecords.reduce((sum, r) => sum + (r.amount || 0), 0);
 
-  const linksCreated = earnedRecords.filter((r) => r.type === 'LINK_CREATED');
-  const messagesSent = earnedRecords.filter((r) => r.type === 'MESSAGE_SENT');
-  const bonusesEarned = earnedRecords.filter((r) => r.type === 'SUCCESS_BONUS');
+  const linksCreated = earnedRecords.filter((r) => r.action === 'LINK_CREATED');
+  const messagesSent = earnedRecords.filter((r) => r.action === 'MESSAGE_SENT');
+  const bonusesEarned = earnedRecords.filter((r) => r.action === 'LINK_SUCCESS_BONUS' || r.action === 'MESSAGE_SUCCESS_BONUS');
 
   // Today's earnings
   const todayStr = new Date().toISOString().split('T')[0];
@@ -140,7 +140,7 @@ export const PersonalEarningsModal: React.FC<PersonalEarningsModalProps> = ({
               <div className="space-y-3">
                 <h3 className="font-bold text-sm text-[#121624] flex items-center justify-between">
                   <span>Earnings Activity Ledger ({financialRecords.length})</span>
-                  <span className="text-[11px] text-[#68645D] font-normal">Real-time financial audits</span>
+                  <span className="text-[11px] text-[#68645D] font-normal">Cloudflare financial ledger</span>
                 </h3>
 
                 {financialRecords.length === 0 ? (
@@ -158,7 +158,7 @@ export const PersonalEarningsModal: React.FC<PersonalEarningsModalProps> = ({
                         <div key={r.id} className="pt-2.5 flex justify-between items-center text-xs">
                           <div className="min-w-0 flex-1 pr-3">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-[#121624]">{r.description}</span>
+                              <span className="font-bold text-[#121624]">{r.notes || r.action}</span>
                               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${
                                 isEarned
                                   ? 'bg-[#4F765C]/15 text-[#4F765C]'
