@@ -28,7 +28,6 @@
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase": "^12.17.1",
     "hono": "^4.13.8",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.546.0",
