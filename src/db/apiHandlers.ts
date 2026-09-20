@@ -209,32 +209,59 @@ export async function handleApiRequest(
     return { status: 200, json: { success: true } };
   }
 
-  // LEADS GET (with full enrichment)
+  // LEADS GET - optimized pipeline payload
   if (path === '/api/leads' && method === 'GET') {
-    const { results: leads } = await db.prepare('SELECT * FROM leads WHERE deletedAt IS NULL').bind().all();
-    const { results: contacts } = await db.prepare('SELECT * FROM contacts').bind().all();
-    const { results: channels } = await db.prepare('SELECT * FROM channels').bind().all();
-    const { results: images } = await db.prepare('SELECT * FROM images').bind().all();
-    const { results: tasks } = await db.prepare('SELECT * FROM tasks WHERE status != ? AND status != ?').bind('completed', 'cancelled').all();
+    const leadColumns = [
+      'id', 'name', 'contactPerson', 'phone', 'email', 'description', 'category', 'industry',
+      'city', 'province', 'country', 'address', 'website', 'existingWebsiteStatus',
+      'googleBusinessUrl', 'sourceUrl', 'sourceId', 'notes', 'source', 'createdMethod',
+      'stage', 'priority', 'quality', 'createdBy', 'createdByName', 'ownerId', 'ownerName',
+      'templateUrl', 'previewUrl', 'workingUrl', 'githubUrl', 'productionNotes', 'deletedAt',
+      'projectDomainName', 'createdAt', 'updatedAt', 'lastActivityAt', 'lastOutreachAt',
+      'lastOutreachChannel', 'outreachCount', 'linkCreatorId', 'linkCreatorName',
+      'linkCreatedAt', 'messageSenderId', 'messageSenderName', 'messageSentAt',
+      'linkBonusAwarded', 'messageBonusAwarded', 'isDealClosed', 'closedAt', 'clientPrice', 'currency',
+      'CASE WHEN chatgptPackageJson IS NOT NULL AND chatgptPackageJson != \'\' THEN 1 ELSE 0 END AS hasChatgptPackage'
+    ].join(', ');
 
-    const fullLeads = leads.map((l: any) => {
-      const lContacts = contacts.filter((c: any) => c.leadId === l.id).map(c => ({
-        ...c,
-        leadId: l.id
-      }));
-      const lChannels = channels.filter((ch: any) => ch.leadId === l.id);
-      const lImages = images.filter((i: any) => i.leadId === l.id);
-      const lTasks = tasks.filter((t: any) => t.leadId === l.id);
+    const [leadResult, contactResult, channelResult, imageCountResult, taskCountResult] = await Promise.all([
+      db.prepare(`SELECT ${leadColumns} FROM leads WHERE deletedAt IS NULL ORDER BY updatedAt DESC`).bind().all(),
+      db.prepare('SELECT * FROM contacts WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind().all(),
+      db.prepare('SELECT * FROM channels WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind().all(),
+      db.prepare("SELECT leadId, COUNT(*) AS imagesCount FROM images WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind().all(),
+      db.prepare("SELECT leadId, COUNT(*) AS openTasksCount FROM tasks WHERE status NOT IN ('completed', 'cancelled') AND leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind().all()
+    ]);
 
-      return {
-        ...l,
-        contacts: lContacts,
-        channels: lChannels,
-        imagesCount: lImages.length,
-        openTasksCount: lTasks.length,
-        chatgptPackage: l.chatgptPackageJson ? JSON.parse(l.chatgptPackageJson) : undefined
-      };
-    });
+    const contactsByLead = new Map<string, any[]>();
+    for (const contact of (contactResult.results || []) as any[]) {
+      const list = contactsByLead.get(contact.leadId) || [];
+      list.push(contact);
+      contactsByLead.set(contact.leadId, list);
+    }
+
+    const channelsByLead = new Map<string, any[]>();
+    for (const channel of (channelResult.results || []) as any[]) {
+      const list = channelsByLead.get(channel.leadId) || [];
+      list.push(channel);
+      channelsByLead.set(channel.leadId, list);
+    }
+
+    const imageCounts = new Map<string, number>(
+      ((imageCountResult.results || []) as any[]).map((row) => [row.leadId, Number(row.imagesCount || 0)])
+    );
+    const openTaskCounts = new Map<string, number>(
+      ((taskCountResult.results || []) as any[]).map((row) => [row.leadId, Number(row.openTasksCount || 0)])
+    );
+
+    const fullLeads = (leadResult.results || []).map((l: any) => ({
+      ...l,
+      contacts: contactsByLead.get(l.id) || [],
+      channels: channelsByLead.get(l.id) || [],
+      imagesCount: imageCounts.get(l.id) || 0,
+      openTasksCount: openTaskCounts.get(l.id) || 0,
+      // Keep the legacy truthy check lightweight; the full package is loaded by the detail endpoint.
+      chatgptPackage: l.hasChatgptPackage ? { projectDomainName: l.projectDomainName || '' } : undefined
+    }));
 
     return { status: 200, json: { leads: fullLeads } };
   }
