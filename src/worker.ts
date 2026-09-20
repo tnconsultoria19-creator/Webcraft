@@ -25,7 +25,6 @@ function ensureSchemaOnce(db: any): Promise<void> {
 
 export default {
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
-    await ensureSchemaOnce(env.DB);
     const url = new URL(request.url);
     const { pathname, search } = url;
 
@@ -42,6 +41,7 @@ export default {
 
     // 1. ROUTE API CALLS TO DECOUPLED HANDLERS
     if (pathname.startsWith('/api/')) {
+      await ensureSchemaOnce(env.DB);
       // Handle the Gemini AI Assistant route
       if (pathname === '/api/ai/sales-assistant' && request.method === 'POST') {
         try {
