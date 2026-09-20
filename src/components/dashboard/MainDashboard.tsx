@@ -32,32 +32,51 @@ import { formatCurrency, formatDateTime, formatTimeAgo, formatExternalUrl } from
 import { getCountryByName } from '../../lib/currencyUtils';
 import { WorldClockBar } from '../layout/WorldClockBar';
 import { findLeadDuplicates } from '../../lib/searchUtils';
-import { updateLeadInFirestore } from '../../lib/firestoreService';
+import {
+  subscribeToLeads,
+  subscribeToTasks,
+  subscribeToOutreach,
+  subscribeToActivities,
+  updateLeadInFirestore
+} from '../../lib/firestoreService';
 
 interface MainDashboardProps {
   currentUser?: User;
   onSelectLead: (leadId: string) => void;
   onOpenQuickAdd: () => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
-  leads: Lead[];
-  tasks: Task[];
-  outreach: OutreachAttempt[];
-  activities: ActivityLog[];
 }
 
 export const MainDashboard: React.FC<MainDashboardProps> = ({
   currentUser,
   onSelectLead,
   onOpenQuickAdd,
-  onDeleteLead,
-  leads,
-  tasks,
-  outreach,
-  activities
+  onDeleteLead
 }) => {
-  const isLoading = false;
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [outreach, setOutreach] = useState<OutreachAttempt[]>([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [chartPeriod, setChartPeriod] = useState<'Weekly' | 'Monthly'>('Weekly');
   const [barChartPeriod, setBarChartPeriod] = useState<'Monthly' | 'Quarterly'>('Monthly');
+
+  useEffect(() => {
+    const unsubLeads = subscribeToLeads((l) => {
+      setLeads(l);
+      setIsLoading(false);
+    });
+    const unsubTasks = subscribeToTasks((t) => setTasks(t));
+    const unsubOutreach = subscribeToOutreach((o) => setOutreach(o));
+    const unsubAct = subscribeToActivities((a) => setActivities(a));
+
+    return () => {
+      unsubLeads();
+      unsubTasks();
+      unsubOutreach();
+      unsubAct();
+    };
+  }, []);
 
   // Compute Metrics
   const totalLeads = leads.length;
