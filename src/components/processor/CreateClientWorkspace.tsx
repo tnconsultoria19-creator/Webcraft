@@ -323,16 +323,15 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
         </div>
       )}
 
-      {/* STEP 1: INPUT WORKSPACE */}
-      {!parsedData ? (
+      {/* INPUT WORKSPACE — PARTIAL PACKAGES ARE ALLOWED */}
+      {(
         <form onSubmit={handleProcessPackage} className="bg-white border border-[#DDD8CE] rounded-3xl p-6 shadow-xs space-y-4">
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-[#292A29]">ChatGPT Business Package</label>
+            <label className="block text-xs font-bold text-[#292A29]">ChatGPT Business Package / Any Output Block</label>
             <textarea
-              required
               value={rawPackage}
               onChange={(e) => setRawPackage(e.target.value)}
-              placeholder="Paste ChatGPT package here..."
+              placeholder="Paste the Gemini instruction, Client Profile JSON, Business/Project Name, or the complete package. Any one is enough to process."
               rows={12}
               className="w-full bg-[#FBF9F5] border border-[#DDD8CE] text-[#292A29] rounded-2xl p-4 text-xs font-mono leading-relaxed focus:outline-none focus:border-[#245F6B] transition-colors resize-y min-h-[260px]"
             />
@@ -340,20 +339,23 @@ export const CreateClientWorkspace: React.FC<CreateClientWorkspaceProps> = ({
 
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
             <p className="text-[11px] text-[#969188]">
-              Paste the full ChatGPT output containing Gemini Instruction, Client Profile JSON, and Business Name.
+              You may paste one output, two outputs, or all three. Missing outputs will not block processing.
             </p>
 
             <button
               type="submit"
               className="w-full sm:w-auto px-6 py-3 bg-[#245F6B] hover:bg-[#1E505A] text-white font-bold text-xs rounded-full shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>PROCESS PACKAGE</span>
+              <span>{parsedData ? 'UPDATE AVAILABLE OUTPUTS' : 'PROCESS AVAILABLE OUTPUTS'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </form>
-      ) : (
+      )}
+      
+      {parsedData && (
         /* STEP 2: THREE OUTPUT BLOCKS */
+
         <div className="space-y-6">
 
           {/* OUTPUT BLOCK 1: GEMINI IMPLEMENTATION INSTRUCTION */}
