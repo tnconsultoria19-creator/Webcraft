@@ -299,6 +299,10 @@ export function App() {
     if (!currentUser) return;
     try {
       await deleteLeadCascade(leadId, currentUser.id, currentUser.displayName);
+      // Remove it from visible state immediately; the shared poller reconciles in the background.
+      setLeads((previous) => previous.filter((lead) => lead.id !== leadId));
+      setTasks((previous) => previous.filter((task) => task.leadId !== leadId));
+      setOutreach((previous) => previous.filter((attempt) => attempt.leadId !== leadId));
       if (selectedLeadId === leadId) {
         setSelectedLeadId(null);
       }
@@ -333,34 +337,63 @@ export function App() {
     restoreSession();
   }, []);
 
-  // Real-time data polling when user is logged in
+  // View-aware polling: only keep the datasets needed by the active workspace live.
+  // This avoids five permanent API polls while the user is sitting on Create Client.
   useEffect(() => {
-    if (currentUser) {
-      const unsubLeads = subscribeToLeads((updatedLeads) => {
-        if (Array.isArray(updatedLeads)) setLeads(updatedLeads);
-      });
-      const unsubUsers = subscribeToUsers((uList) => {
-        if (uList) setTeamUsers(uList);
-      });
-      const unsubTasks = subscribeToTasks((tList) => {
-        if (tList) setTasks(tList);
-      });
-      const unsubOutreach = subscribeToOutreach((oList) => {
-        if (oList) setOutreach(oList);
-      });
-      const unsubActivities = subscribeToActivities((aList) => {
-        if (aList) setActivities(aList);
-      });
+    if (!currentUser) return;
 
-      return () => {
-        unsubLeads();
-        unsubUsers();
-        unsubTasks();
-        unsubOutreach();
-        unsubActivities();
-      };
+    const unsubscribers: Array<() => void> = [];
+
+    unsubscribers.push(
+      subscribeToLeads((updatedLeads) => {
+        if (Array.isArray(updatedLeads)) setLeads(updatedLeads);
+      })
+    );
+
+    unsubscribers.push(
+      subscribeToUsers((uList) => {
+        if (uList) setTeamUsers(uList);
+      })
+    );
+
+    const needsWorkData = currentView === 'dashboard' || currentView === 'pipeline' || currentView === 'my_work';
+    const needsOutreachData = currentView === 'dashboard' || currentView === 'pipeline';
+    const needsActivityData = currentView === 'dashboard' || currentView === 'pipeline';
+
+    if (needsWorkData) {
+      unsubscribers.push(
+        subscribeToTasks((tList) => {
+          if (tList) setTasks(tList);
+        })
+      );
+    } else {
+      setTasks([]);
     }
-  }, [currentUser]);
+
+    if (needsOutreachData) {
+      unsubscribers.push(
+        subscribeToOutreach((oList) => {
+          if (oList) setOutreach(oList);
+        })
+      );
+    } else {
+      setOutreach([]);
+    }
+
+    if (needsActivityData) {
+      unsubscribers.push(
+        subscribeToActivities((aList) => {
+          if (aList) setActivities(aList);
+        })
+      );
+    } else {
+      setActivities([]);
+    }
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [currentUser, currentView]);
 
   const handleAuthSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -674,7 +707,11 @@ export function App() {
               currentUser={currentUser}
               existingLeads={leads}
               onClientSaved={(newLead) => {
-                // Realtime subscription automatically captures the new lead
+                // Update the local pipeline immediately; background synchronization will reconcile it.
+                setLeads((previous) => [
+                  newLead,
+                  ...previous.filter((lead) => lead.id !== newLead.id)
+                ]);
               }}
               onOpenPipeline={() => setCurrentView('pipeline')}
               onSelectLead={(id) => setSelectedLeadId(id)}
