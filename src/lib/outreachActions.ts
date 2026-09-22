@@ -90,6 +90,9 @@ export function getLeadEmail(lead: Lead): string | null {
  * Extracts contact person name or returns fallback
  */
 export function getLeadContactPerson(lead: Lead): string {
+  // The business-intelligence package should provide the Facebook/profile owner's
+  // name as contactPerson. Prefer that over the business name so outreach is
+  // addressed to the actual person rather than "the business".
   if (lead.contactPerson && lead.contactPerson.trim()) return lead.contactPerson.trim();
 
   if (lead.contacts && Array.isArray(lead.contacts)) {
@@ -97,35 +100,45 @@ export function getLeadContactPerson(lead: Lead): string {
     if (contactWithPerson?.contactPerson) return contactWithPerson.contactPerson.trim();
   }
 
-  return lead.name || 'Business Owner';
+  return 'Business Owner';
 }
 
 /**
- * Generates the English sales outreach pitch (South Africa / general: R650/year in 3 installments)
+ * Standard WebCraft outreach identity and offer.
+ * Keep these centralized so every generated English outreach message uses
+ * the same sender details and pricing.
  */
-export function generateEnglishPitch(lead: Lead, senderName?: string, portfolioUrl?: string): string {
+const WEBCRAFT_OUTREACH_SENDER = {
+  name: 'Shiro',
+  title: 'Web Designer',
+  email: 'info@silvestre.co.za',
+  phone: '081 746 1041'
+};
+
+/**
+ * Generates the English sales outreach pitch.
+ * The greeting uses the Facebook/profile owner name stored in contactPerson,
+ * while the business name is used in the body.
+ */
+export function generateEnglishPitch(lead: Lead, _senderName?: string, _portfolioUrl?: string): string {
   const person = getLeadContactPerson(lead);
   const businessName = lead.name || 'your business';
   const preview = lead.templateUrl || lead.previewUrl || '[Insert Link to Preview]';
-  const name = senderName || 'Olisbel' || 'WebCraft Studio';
-  const portfolio = portfolioUrl || 'https://webcraftstudio.com';
-  const needsRedesign = lead.existingWebsiteStatus === 'Outdated' || (lead.website && lead.website.trim().length > 0);
-
-  const websiteSentence = needsRedesign
-    ? "noticed your website could use a modern upgrade, so I put together a fresh design concept for you:"
-    : "noticed you don't have a website yet, so I put together a modern design concept for you:";
 
   return `Hi ${person},
 
-I came across ${businessName} and ${websiteSentence}
+I came across ${businessName} and noticed that you don't have a website. So I put together a modern concept for you.
 
+Here's the link:
 👉 ${preview}
 
-If you like the direction, I'm currently running a special to get you online for R650/year (payable in 3 installments), and I can set everything up for you.
+If you like it, I'm currently running a special to get you online for R650 per year, payable in 3 installments, and I can set everything up for you.
 
-Best,
-${name}
-🌐 ${portfolio}`;
+Best regards,
+${WEBCRAFT_OUTREACH_SENDER.name}
+${WEBCRAFT_OUTREACH_SENDER.title}
+${WEBCRAFT_OUTREACH_SENDER.email}
+${WEBCRAFT_OUTREACH_SENDER.phone}`;
 }
 
 /**
