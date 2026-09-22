@@ -28,13 +28,18 @@ type SharedSubscriber<T> = (data: T) => void;
 const sharedPollers = new Map<string, SharedPollerEntry<any>>();
 
 let lifecycleRefreshBound = false;
+let lifecycleRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 function bindLifecycleRefresh() {
   if (lifecycleRefreshBound || typeof window === 'undefined') return;
   lifecycleRefreshBound = true;
 
   const refreshActivePollers = () => {
-    void refreshData(Array.from(sharedPollers.keys()));
+    if (lifecycleRefreshTimer) return;
+    lifecycleRefreshTimer = setTimeout(() => {
+      lifecycleRefreshTimer = null;
+      void refreshData(Array.from(sharedPollers.keys()));
+    }, 150);
   };
 
   document.addEventListener('visibilitychange', () => {
@@ -55,7 +60,7 @@ interface SharedPollerEntry<T> {
   refresh: () => Promise<void>;
 }
 
-function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 5000, key?: string) {
+function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 12000, key?: string) {
   let entry = sharedPollers.get(url) as SharedPollerEntry<T> | undefined;
 
   if (!entry) {
@@ -92,7 +97,14 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
 
       const request = (async () => {
         try {
-          const res = await fetch(url, { cache: 'no-store' });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), Math.max(entry?.intervalMs ?? 12000, 10000));
+          let res: Response;
+          try {
+            res = await fetch(url, { cache: 'no-store', signal: controller.signal });
+          } finally {
+            clearTimeout(timeoutId);
+          }
           if (!res.ok) throw new Error('Fetch failed for ' + url);
           const data = await res.json() as any;
           if (!entry || !entry.active) return;
@@ -169,14 +181,14 @@ export async function refreshData(urls: string[]): Promise<void> {
 }
 
 export function subscribeToUsers(callback: (users: User[]) => void) {
-  return createPoller('/api/users', callback, 5000);
+  return createPoller('/api/users', callback, 15000);
 }
 
 export function subscribeToAdminUsers(adminUserId: string, callback: (users: User[]) => void) {
   return createPoller(
     `/api/users/admin-list/${encodeURIComponent(adminUserId)}`,
     callback,
-    5000
+    15000
   );
 }
 
@@ -283,7 +295,7 @@ export async function updateOwnUserProfile(
 }
 
 export function subscribeToLeads(callback: (leads: Lead[]) => void) {
-  return createPoller('/api/leads', callback, 5000, 'leads');
+  return createPoller('/api/leads', callback, 12000, 'leads');
 }
 
 export interface LeadDetailPayload {
@@ -296,19 +308,19 @@ export interface LeadDetailPayload {
 }
 
 export function subscribeToLeadDetail(leadId: string, callback: (data: LeadDetailPayload) => void) {
-  return createPoller(`/api/leads/${encodeURIComponent(leadId)}/detail`, callback, 7000);
+  return createPoller(`/api/leads/${encodeURIComponent(leadId)}/detail`, callback, 12000);
 }
 
 export function subscribeToTasks(callback: (tasks: Task[]) => void) {
-  return createPoller('/api/tasks', callback, 5000);
+  return createPoller('/api/tasks', callback, 12000);
 }
 
 export function subscribeToOutreach(callback: (outreach: OutreachAttempt[]) => void) {
-  return createPoller('/api/outreach', callback, 5000);
+  return createPoller('/api/outreach', callback, 12000);
 }
 
 export function subscribeToActivities(callback: (activities: ActivityLog[]) => void) {
-  return createPoller('/api/activities', callback, 5000);
+  return createPoller('/api/activities', callback, 15000);
 }
 
 export async function createLeadInFirestore(
@@ -494,7 +506,7 @@ export async function releaseTaskAtomic(taskId: string, userId: string, userName
 }
 
 export function subscribeToLeadNotes(leadId: string, callback: (notes: LeadNote[]) => void) {
-  return createPoller(`/api/leads/${leadId}/notes`, callback, 5000, 'notes');
+  return createPoller(`/api/leads/${leadId}/notes`, callback, 12000, 'notes');
 }
 
 export async function addLeadNoteInFirestore(
@@ -534,7 +546,7 @@ export async function adminOverrideTask(
 }
 
 export function subscribeToImages(leadId: string, callback: (images: ImageAsset[]) => void) {
-  return createPoller(`/api/leads/${leadId}/images`, callback, 5000, 'images');
+  return createPoller(`/api/leads/${leadId}/images`, callback, 15000, 'images');
 }
 
 export async function addExternalImageUrlToLead(
@@ -739,7 +751,7 @@ export async function evaluateAndAwardDealBonuses(leadId: string, userId: string
 }
 
 export function subscribeToFinancialRecords(callback: (records: FinancialRecord[]) => void): () => void {
-  return createPoller('/api/financial-records', callback, 5000);
+  return createPoller('/api/financial-records', callback, 15000);
 }
 
 export async function adminReverseFinancialRecord(recordId: string, reason: string, adminUser: User): Promise<void> {
