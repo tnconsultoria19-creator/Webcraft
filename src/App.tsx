@@ -11,7 +11,8 @@ import {
   updateLeadInFirestore,
   getUserProfile,
   syncUserProfile,
-  deleteLeadCascade
+  deleteLeadCascade,
+  deleteLeadsCascade
 } from './lib/firestoreService';
 import { downloadLeadsCSV } from './lib/exportUtils';
 
@@ -336,6 +337,41 @@ export function App() {
         ]);
       }
       alert(err.message || 'Failed to delete lead.');
+    }
+  };
+
+  const handleBulkDeleteLeads = async (leadIds: string[]) => {
+    if (!currentUser || !leadIds.length) return;
+
+    const uniqueIds = Array.from(new Set(leadIds));
+    const selectedSet = new Set(uniqueIds);
+    const previousLeads = leads.filter((lead) => selectedSet.has(lead.id));
+    const previousTasks = tasks.filter((task) => selectedSet.has(task.leadId));
+    const previousOutreach = outreach.filter((attempt) => selectedSet.has(attempt.leadId));
+
+    // Remove the selected prospects immediately. The server mutation runs as one batch.
+    setLeads((previous) => previous.filter((lead) => !selectedSet.has(lead.id)));
+    setTasks((previous) => previous.filter((task) => !selectedSet.has(task.leadId)));
+    setOutreach((previous) => previous.filter((attempt) => !selectedSet.has(attempt.leadId)));
+    if (selectedLeadId && selectedSet.has(selectedLeadId)) setSelectedLeadId(null);
+
+    try {
+      await deleteLeadsCascade(uniqueIds, currentUser.id, currentUser.displayName);
+    } catch (err: any) {
+      // Roll back the whole selection if the bulk operation fails.
+      setLeads((previous) => {
+        const existing = new Set(previous.map((lead) => lead.id));
+        return [...previous, ...previousLeads.filter((lead) => !existing.has(lead.id))];
+      });
+      setTasks((previous) => {
+        const existing = new Set(previous.map((task) => task.id));
+        return [...previous, ...previousTasks.filter((task) => !existing.has(task.id))];
+      });
+      setOutreach((previous) => {
+        const existing = new Set(previous.map((attempt) => attempt.id));
+        return [...previous, ...previousOutreach.filter((attempt) => !existing.has(attempt.id))];
+      });
+      throw err;
     }
   };
 
@@ -858,6 +894,7 @@ export function App() {
                 isLoading={isLeadsLoading}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onDeleteLead={handleDeleteLead}
+                onBulkDelete={handleBulkDeleteLeads}
               />
             )
           )}
