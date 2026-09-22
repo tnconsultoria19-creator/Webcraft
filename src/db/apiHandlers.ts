@@ -559,7 +559,7 @@ export async function handleApiRequest(
     if (!lead) return { status: 404, json: { error: 'Lead not found.' } };
 
     const now = new Date().toISOString();
-    await db.prepare('UPDATE leads SET deletedAt = ? WHERE id = ?').bind(now, leadId).run();
+    await db.prepare('UPDATE leads SET deletedAt = ?, updatedAt = ? WHERE id = ?').bind(now, now, leadId).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(genId('act'), userId, userName, 'lead_deleted', 'lead', leadId, lead.name, now)
@@ -568,9 +568,12 @@ export async function handleApiRequest(
     return { status: 200, json: { success: true } };
   }
 
-  // TASKS GET
+  // TASKS GET - exclude tasks belonging to soft-deleted leads so deleted clients
+  // disappear immediately from My Work / available work without destroying task history.
   if (path === '/api/tasks' && method === 'GET') {
-    const { results: tasks } = await db.prepare('SELECT * FROM tasks').bind().all();
+    const { results: tasks } = await db.prepare(
+      "SELECT t.* FROM tasks t LEFT JOIN leads l ON l.id = t.leadId WHERE l.id IS NULL OR l.deletedAt IS NULL ORDER BY t.createdAt DESC"
+    ).bind().all();
     return { status: 200, json: tasks };
   }
 
@@ -655,9 +658,12 @@ export async function handleApiRequest(
     return { status: 200, json: { success: true, task: updatedTask } };
   }
 
-  // OUTREACH GET
+  // OUTREACH GET - exclude outreach history attached to soft-deleted leads
+  // from active workspace views while preserving the records for audit/history.
   if (path === '/api/outreach' && method === 'GET') {
-    const { results: outreach } = await db.prepare('SELECT * FROM outreachAttempts').bind().all();
+    const { results: outreach } = await db.prepare(
+      "SELECT o.* FROM outreachAttempts o LEFT JOIN leads l ON l.id = o.leadId WHERE l.id IS NULL OR l.deletedAt IS NULL ORDER BY o.sentAt DESC"
+    ).bind().all();
     return { status: 200, json: outreach };
   }
 
