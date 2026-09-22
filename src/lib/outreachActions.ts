@@ -104,7 +104,7 @@ export function getLeadContactPerson(lead: Lead): string {
   // This is preferable to inventing or guessing a person's name.
   if (lead.name && lead.name.trim()) return lead.name.trim();
 
-  return 'Business Owner';
+  return 'Hi there';
 }
 
 /**
