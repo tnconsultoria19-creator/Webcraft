@@ -407,15 +407,54 @@ export function App() {
 
     const unsubscribers: Array<() => void> = [];
 
+    // Hydrate the pipeline from the last successful browser snapshot immediately.
+    // This prevents a blank pipeline after refresh while the live API request is in flight.
+    const leadsCacheKey = `webcraft_leads_cache_${currentUser.id}`;
+    const usersCacheKey = `webcraft_users_cache_${currentUser.id}`;
+
+    try {
+      const cachedLeads = localStorage.getItem(leadsCacheKey);
+      if (cachedLeads) {
+        const parsedLeads = JSON.parse(cachedLeads);
+        if (Array.isArray(parsedLeads)) setLeads(parsedLeads);
+      }
+    } catch (cacheError) {
+      console.warn('Could not restore cached leads:', cacheError);
+    }
+
     unsubscribers.push(
       subscribeToLeads((updatedLeads) => {
-        if (Array.isArray(updatedLeads)) setLeads(updatedLeads);
+        if (Array.isArray(updatedLeads)) {
+          setLeads(updatedLeads);
+          try {
+            localStorage.setItem(leadsCacheKey, JSON.stringify(updatedLeads));
+          } catch (cacheError) {
+            console.warn('Could not cache leads:', cacheError);
+          }
+        }
       })
     );
 
+    try {
+      const cachedUsers = localStorage.getItem(usersCacheKey);
+      if (cachedUsers) {
+        const parsedUsers = JSON.parse(cachedUsers);
+        if (Array.isArray(parsedUsers)) setTeamUsers(parsedUsers);
+      }
+    } catch (cacheError) {
+      console.warn('Could not restore cached users:', cacheError);
+    }
+
     unsubscribers.push(
       subscribeToUsers((uList) => {
-        if (uList) setTeamUsers(uList);
+        if (Array.isArray(uList)) {
+          setTeamUsers(uList);
+          try {
+            localStorage.setItem(usersCacheKey, JSON.stringify(uList));
+          } catch (cacheError) {
+            console.warn('Could not cache users:', cacheError);
+          }
+        }
       })
     );
 
