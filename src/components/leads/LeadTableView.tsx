@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Globe, Eye, ExternalLink, Phone, AlertTriangle, Trash2, FileText } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Globe, Eye, ExternalLink, Phone, AlertTriangle, Trash2, FileText, Check, Minus } from 'lucide-react';
 import { Lead } from '../../types';
 import { getStageLabel, formatDateTime, formatExternalUrl } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
@@ -11,22 +11,98 @@ interface LeadTableViewProps {
   isLoading?: boolean;
   onSelectLead: (leadId: string) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
+  onBulkDelete?: (leadIds: string[]) => Promise<void>;
 }
 
 export const LeadTableView: React.FC<LeadTableViewProps> = ({
   leads,
   isLoading = false,
   onSelectLead,
-  onDeleteLead
+  onDeleteLead,
+  onBulkDelete
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const visibleLeadIds = useMemo(() => leads.map((lead) => lead.id), [leads]);
+  const selectedVisibleCount = visibleLeadIds.filter((id) => selectedIds.has(id)).length;
+  const allVisibleSelected = visibleLeadIds.length > 0 && selectedVisibleCount === visibleLeadIds.length;
+  const someVisibleSelected = selectedVisibleCount > 0 && !allVisibleSelected;
+
+  useEffect(() => {
+    setSelectedIds((previous) => {
+      const visible = new Set(visibleLeadIds);
+      const next = new Set(Array.from(previous).filter((id) => visible.has(id)));
+      return next.size === previous.size ? previous : next;
+    });
+  }, [visibleLeadIds]);
+
+  const toggleLeadSelection = (leadId: string) => {
+    setSelectedIds((previous) => {
+      const next = new Set(previous);
+      if (next.has(leadId)) next.delete(leadId);
+      else next.add(leadId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((previous) => {
+      if (allVisibleSelected) return new Set();
+      return new Set(visibleLeadIds);
+    });
+  };
+
+  const confirmBulkDelete = async () => {
+    if (!onBulkDelete || !selectedIds.size) return;
+    setIsBulkDeleting(true);
+    try {
+      await onBulkDelete(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      setShowBulkDeleteConfirm(false);
+    } catch (err) {
+      alert((err as any)?.message || 'Failed to delete selected prospects.');
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   return (
     <div className="bg-white border border-[#DDD8CE] rounded-2xl overflow-hidden shadow-xs font-['Poppins']">
+      <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-[#FAF7F2] border-b border-[#DDD8CE]">
+        <div className="text-xs font-semibold text-[#68645D]">
+          {selectedVisibleCount > 0 ? <span><strong className="text-[#245F6B]">{selectedVisibleCount}</strong> selected</span> : <span>Select prospects to perform bulk actions</span>}
+        </div>
+        {selectedVisibleCount > 0 && onBulkDelete && (
+          <button
+            type="button"
+            onClick={() => setShowBulkDeleteConfirm(true)}
+            disabled={isBulkDeleting}
+            className="px-3.5 py-1.5 bg-[#A65B55] hover:bg-[#8F4D48] text-white rounded-full text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete Selected ({selectedVisibleCount})
+          </button>
+        )}
+      </div>
+
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-[#F4F1EA] text-[#68645D] font-bold text-[11px] uppercase tracking-wider border-b border-[#DDD8CE]">
+              <th className="py-4.5 px-3 w-12">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
+                  disabled={!visibleLeadIds.length || isBulkDeleting}
+                  className="w-7 h-7 rounded-lg border border-[#DDD8CE] bg-white hover:bg-[#E5EEEE] flex items-center justify-center disabled:opacity-40"
+                  title={allVisibleSelected ? "Deselect all visible prospects" : "Select all visible prospects"}
+                >
+                  {allVisibleSelected ? <Check className="w-4 h-4 text-[#245F6B]" /> : someVisibleSelected ? <Minus className="w-4 h-4 text-[#245F6B]" /> : null}
+                </button>
+              </th>
               <th className="py-4.5 px-5">Prospect ID</th>
               <th className="py-4.5 px-5">Business Name</th>
               <th className="py-4.5 px-5">Contact Details</th>
@@ -42,7 +118,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
           <tbody className="divide-y divide-[#DDD8CE] text-[#68645D]">
             {isLoading ? (
               <tr>
-                <td colSpan={10} className="py-16 text-center">
+                <td colSpan={11} className="py-16 text-center">
                   <div className="inline-flex items-center gap-3 text-[#68645D] font-medium">
                     <span className="w-5 h-5 rounded-full border-2 border-[#245F6B]/20 border-t-[#245F6B] animate-spin" />
                     <span>Loading prospects...</span>
@@ -67,6 +143,18 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                     onClick={() => onSelectLead(lead.id)}
                     className="hover:bg-[#F0EDE5] transition-colors cursor-pointer group"
                   >
+                    <td className="py-4.5 px-3 w-12">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleLeadSelection(lead.id); }}
+                        disabled={isBulkDeleting}
+                        className="w-7 h-7 rounded-lg border border-[#DDD8CE] bg-white hover:bg-[#E5EEEE] flex items-center justify-center"
+                        title={selectedIds.has(lead.id) ? "Deselect prospect" : "Select prospect"}
+                      >
+                        {selectedIds.has(lead.id) && <Check className="w-4 h-4 text-[#245F6B]" />}
+                      </button>
+                    </td>
+
                     <td className="py-4.5 px-5 text-xs font-bold text-[#245F6B]">
                       {lead.id}
                     </td>
@@ -197,6 +285,15 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        isOpen={showBulkDeleteConfirm}
+        title={`Delete ${selectedVisibleCount} selected prospect${selectedVisibleCount === 1 ? '' : 's'}?`}
+        description="This will remove the selected prospects from the active pipeline. Their records are soft-deleted and an audit entry is recorded. This action cannot be undone from the pipeline."
+        confirmLabel={isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
+        onClose={() => !isBulkDeleting && setShowBulkDeleteConfirm(false)}
+        onConfirm={confirmBulkDelete}
+      />
 
       <ConfirmModal
         isOpen={!!leadToDelete}
