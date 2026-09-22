@@ -24,6 +24,25 @@ export function cleanFirestoreData<T extends Record<string, any>>(obj: T): Parti
 // Multiple parts of the UI can subscribe to the same endpoint without creating duplicate network requests.
 type SharedSubscriber<T> = (data: T) => void;
 
+// Shared pollers are keyed by endpoint so multiple screens/components share one network request.
+const sharedPollers = new Map<string, SharedPollerEntry<any>>();
+
+let lifecycleRefreshBound = false;
+
+function bindLifecycleRefresh() {
+  if (lifecycleRefreshBound || typeof window === 'undefined') return;
+  lifecycleRefreshBound = true;
+
+  const refreshActivePollers = () => {
+    void refreshData(Array.from(sharedPollers.keys()));
+  };
+
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) refreshActivePollers();
+  });
+  window.addEventListener('online', refreshActivePollers);
+}
+
 interface SharedPollerEntry<T> {
   subscribers: Set<SharedSubscriber<T>>;
   timer: ReturnType<typeof setTimeout> | null;
@@ -58,9 +77,13 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
     const scheduleNext = () => {
       if (!entry || !entry.active || entry.subscribers.size === 0) return;
       if (entry.timer) clearTimeout(entry.timer);
+      const delay =
+        typeof document !== 'undefined' && document.hidden
+          ? Math.max(entry.intervalMs * 6, 30000)
+          : entry.intervalMs;
       entry.timer = setTimeout(() => {
         void poll();
-      }, entry.intervalMs);
+      }, delay);
     };
 
     poll = async (): Promise<void> => {
@@ -110,6 +133,7 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
     };
 
     entry.refresh = poll;
+    bindLifecycleRefresh();
     void poll();
   }
 
