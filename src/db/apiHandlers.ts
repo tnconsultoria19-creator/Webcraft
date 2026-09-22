@@ -588,6 +588,38 @@ export async function handleApiRequest(
     return { status: 200, json: { success: true } };
   }
 
+  // BULK LEAD CASCADE DELETE
+  if (path === '/api/leads/delete-bulk' && method === 'POST') {
+    const { leadIds, userId, userName } = body;
+    const ids = Array.isArray(leadIds)
+      ? Array.from(new Set(leadIds.filter((id: unknown): id is string => typeof id === 'string' && id.trim())))
+      : [];
+
+    if (!ids.length) return { status: 400, json: { error: 'No leads selected.' } };
+    if (ids.length > 500) return { status: 400, json: { error: 'You can delete up to 500 leads at once.' } };
+
+    const placeholders = ids.map(() => '?').join(', ');
+    const { results: existingLeads } = await db.prepare(
+      'SELECT id, name FROM leads WHERE deletedAt IS NULL AND id IN (' + placeholders + ')'
+    ).bind(...ids).all();
+
+    if (!existingLeads.length) return { status: 404, json: { error: 'No selected leads were found.' } };
+
+    const now = new Date().toISOString();
+    const statements: any[] = [];
+    for (const lead of existingLeads as any[]) {
+      statements.push(
+        db.prepare('UPDATE leads SET deletedAt = ?, updatedAt = ? WHERE id = ? AND deletedAt IS NULL')
+          .bind(now, now, lead.id),
+        db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(genId('act'), userId, userName, 'lead_deleted', 'lead', lead.id, lead.name, JSON.stringify({ bulk: true }), now)
+      );
+    }
+
+    await db.batch(statements);
+    return { status: 200, json: { success: true, deletedCount: existingLeads.length } };
+  }
+
   // TASKS GET - exclude tasks belonging to soft-deleted leads so deleted clients
   // disappear immediately from My Work / available work without destroying task history.
   if (path === '/api/tasks' && method === 'GET') {
