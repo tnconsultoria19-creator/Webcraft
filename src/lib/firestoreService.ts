@@ -372,7 +372,7 @@ export async function updateLeadInFirestore(
   updates: Partial<Lead>,
   userId: string,
   userName: string
-): Promise<void> {
+): Promise<Lead> {
   const res = await fetch('/api/leads/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -382,8 +382,14 @@ export async function updateLeadInFirestore(
     const errorBody = await res.json().catch(() => ({}));
     throw new Error((errorBody as any)?.error || 'Failed to update lead');
   }
+
+  const updatedLead = await res.json() as Lead;
+
+  // The caller can reconcile the single changed lead immediately.
+  // Keep the collection refresh non-blocking for other views.
   void refreshData(['/api/leads', '/api/activities']);
 
+  return updatedLead;
 }
 
 export async function grabTaskAtomic(taskId: string, userId: string, userName: string): Promise<{ success: boolean; message: string; task?: Task }> {
