@@ -297,17 +297,80 @@ export function App() {
 
   const handleDeleteLead = async (leadId: string, _leadName?: string) => {
     if (!currentUser) return;
+
+    // Optimistic removal: the CRM should feel immediate while the server mutation
+    // completes in the background. Keep snapshots so a failed delete can roll back.
+    const previousLead = leads.find((lead) => lead.id === leadId);
+    const previousTasks = tasks.filter((task) => task.leadId === leadId);
+    const previousOutreach = outreach.filter((attempt) => attempt.leadId === leadId);
+
+    setLeads((previous) => previous.filter((lead) => lead.id !== leadId));
+    setTasks((previous) => previous.filter((task) => task.leadId !== leadId));
+    setOutreach((previous) => previous.filter((attempt) => attempt.leadId !== leadId));
+
+    if (selectedLeadId === leadId) {
+      setSelectedLeadId(null);
+    }
+
     try {
       await deleteLeadCascade(leadId, currentUser.id, currentUser.displayName);
-      // Remove it from visible state immediately; the shared poller reconciles in the background.
-      setLeads((previous) => previous.filter((lead) => lead.id !== leadId));
-      setTasks((previous) => previous.filter((task) => task.leadId !== leadId));
-      setOutreach((previous) => previous.filter((attempt) => attempt.leadId !== leadId));
-      if (selectedLeadId === leadId) {
-        setSelectedLeadId(null);
-      }
     } catch (err: any) {
+      // Roll back only if the server rejected the mutation.
+      if (previousLead) {
+        setLeads((previous) => {
+          if (previous.some((lead) => lead.id === leadId)) return previous;
+          return [previousLead, ...previous];
+        });
+      }
+      if (previousTasks.length) {
+        setTasks((previous) => [
+          ...previous.filter((task) => task.leadId !== leadId),
+          ...previousTasks
+        ]);
+      }
+      if (previousOutreach.length) {
+        setOutreach((previous) => [
+          ...previous.filter((attempt) => attempt.leadId !== leadId),
+          ...previousOutreach
+        ]);
+      }
       alert(err.message || 'Failed to delete lead.');
+    }
+  };
+
+  const handleUpdateLeadStage = async (leadId: string, newStage: Lead['stage']) => {
+    if (!currentUser) return;
+
+    const previousLead = leads.find((lead) => lead.id === leadId);
+    if (!previousLead || previousLead.stage === newStage) return;
+
+    const optimisticLead = {
+      ...previousLead,
+      stage: newStage,
+      updatedAt: new Date().toISOString()
+    };
+
+    // Move the card immediately. The API response is reconciled afterwards.
+    setLeads((previous) => previous.map((lead) => (
+      lead.id === leadId ? optimisticLead : lead
+    )));
+
+    try {
+      const updatedLead = await updateLeadInFirestore(
+        leadId,
+        { stage: newStage },
+        currentUser.id,
+        currentUser.displayName
+      );
+
+      setLeads((previous) => previous.map((lead) => (
+        lead.id === leadId ? { ...lead, ...updatedLead } : lead
+      )));
+    } catch (err: any) {
+      setLeads((previous) => previous.map((lead) => (
+        lead.id === leadId ? previousLead : lead
+      )));
+      alert(err.message || 'Failed to update lead stage.');
     }
   };
 
@@ -741,9 +804,7 @@ export function App() {
               <LeadKanbanView
                 leads={filteredLeads}
                 onSelectLead={(id) => setSelectedLeadId(id)}
-                onUpdateStage={async (id, newStage) => {
-                  await updateLeadInFirestore(id, { stage: newStage }, currentUser.id, currentUser.displayName);
-                }}
+                onUpdateStage={handleUpdateLeadStage}
                 onDeleteLead={handleDeleteLead}
               />
             ) : (
