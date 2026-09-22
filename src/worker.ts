@@ -1,26 +1,10 @@
 import { handleApiRequest } from './db/apiHandlers';
 import { GoogleGenAI } from '@google/genai';
-import { ensureD1Schema } from './db/d1Init';
-
 interface Env {
   DB: any;
   BUCKET: any;
   GEMINI_API_KEY?: string;
   ASSETS?: any;
-}
-
-// Initialize the D1 schema at most once per Worker isolate.
-// Running PRAGMA/CREATE checks on every request was adding unnecessary database work.
-let schemaReady: Promise<void> | null = null;
-
-function ensureSchemaOnce(db: any): Promise<void> {
-  if (!schemaReady) {
-    schemaReady = ensureD1Schema(db).catch((error) => {
-      schemaReady = null;
-      throw error;
-    });
-  }
-  return schemaReady;
 }
 
 export default {
@@ -54,7 +38,8 @@ export default {
 
     // 1. ROUTE API CALLS TO DECOUPLED HANDLERS
     if (pathname.startsWith('/api/')) {
-      await ensureSchemaOnce(env.DB);
+      // D1 schema is managed outside the request hot path.
+      // Keeping schema creation/PRAGMA/index work out of live requests avoids cold-start latency.
       // Handle the Gemini AI Assistant route
       if (pathname === '/api/ai/sales-assistant' && request.method === 'POST') {
         try {
