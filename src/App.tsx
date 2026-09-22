@@ -52,6 +52,7 @@ export function App() {
 
   // Leads state & filters
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [isLeadsLoading, setIsLeadsLoading] = useState(true);
   const [teamUsers, setTeamUsers] = useState<User[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [outreach, setOutreach] = useState<OutreachAttempt[]>([]);
@@ -416,7 +417,10 @@ export function App() {
       const cachedLeads = localStorage.getItem(leadsCacheKey);
       if (cachedLeads) {
         const parsedLeads = JSON.parse(cachedLeads);
-        if (Array.isArray(parsedLeads)) setLeads(parsedLeads);
+        if (Array.isArray(parsedLeads)) {
+          setLeads(parsedLeads);
+          setIsLeadsLoading(false);
+        }
       }
     } catch (cacheError) {
       console.warn('Could not restore cached leads:', cacheError);
@@ -426,6 +430,7 @@ export function App() {
       subscribeToLeads((updatedLeads) => {
         if (Array.isArray(updatedLeads)) {
           setLeads(updatedLeads);
+          setIsLeadsLoading(false);
           try {
             localStorage.setItem(leadsCacheKey, JSON.stringify(updatedLeads));
           } catch (cacheError) {
@@ -748,7 +753,7 @@ export function App() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-[#292A29]">Prospect Pipeline</span>
                   <span className="text-xs text-[#969188]">
-                    ({filteredLeads.length} of {leads.length} prospects)
+                    {isLeadsLoading ? '(Loading prospects...)' : `(${filteredLeads.length} of ${leads.length} prospects)`}
                   </span>
                 </div>
 
@@ -842,6 +847,7 @@ export function App() {
             pipelineLayout === 'kanban' ? (
               <LeadKanbanView
                 leads={filteredLeads}
+                isLoading={isLeadsLoading}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onUpdateStage={handleUpdateLeadStage}
                 onDeleteLead={handleDeleteLead}
@@ -849,6 +855,7 @@ export function App() {
             ) : (
               <LeadTableView
                 leads={filteredLeads}
+                isLoading={isLeadsLoading}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onDeleteLead={handleDeleteLead}
               />
