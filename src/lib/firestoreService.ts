@@ -62,8 +62,10 @@ interface SharedPollerEntry<T> {
 
 function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 12000, key?: string) {
   let entry = sharedPollers.get(url) as SharedPollerEntry<T> | undefined;
+  let created = false;
 
   if (!entry) {
+    created = true;
     entry = {
       subscribers: new Set(),
       timer: null,
@@ -146,13 +148,16 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
 
     entry.refresh = poll;
     bindLifecycleRefresh();
-    void poll();
   }
 
+  // Register the subscriber before the first request so the initial response
+  // can never be fetched without a listener attached.
   entry.subscribers.add(callback);
 
   if (entry.lastData !== undefined) {
     callback(entry.lastData);
+  } else if (created && entry.refresh) {
+    void entry.refresh();
   }
 
   return () => {
