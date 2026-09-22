@@ -412,74 +412,98 @@ export async function handleApiRequest(
     const { data, userId, userName } = body;
     const now = new Date().toISOString();
 
-    const { results: leads } = await db.prepare('SELECT id FROM leads').bind().all();
-    const count = leads.length + 101;
-    const leadId = `LEAD-${String(count).padStart(6, '0')}`;
-
+    // IDs are generated independently of row counts so creation does not scan the whole leads table.
+    const leadId = `LEAD-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
     const chatgptPackageJson = data.chatgptPackage ? JSON.stringify(data.chatgptPackage) : null;
 
-    // Insert lead
-    await db.prepare(`
-      INSERT INTO leads (
-        id, name, description, category, industry, city, province, country, address, website,
-        existingWebsiteStatus, googleBusinessUrl, sourceUrl, sourceId, contactPerson, phone, email,
-        notes, source, createdMethod, stage, priority, quality, createdBy, createdByName, ownerId, ownerName,
-        createdAt, updatedAt, chatgptPackageJson, projectDomainName
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      leadId, data.name, data.description || '', data.category || '', data.industry || '', data.city || '',
-      data.province || '', data.country || 'South Africa', data.address || '', data.website || '',
-      data.existingWebsiteStatus || 'None', data.googleBusinessUrl || '', data.sourceUrl || '', data.sourceId || '',
-      data.contactPerson || '', data.phone || '', data.email || '', data.notes || '', data.source || 'Other',
-      data.createdMethod || 'manual', 'captured', data.priority || 'normal', 'verified', userId, userName, userId, userName,
-      now, now, chatgptPackageJson, data.projectDomainName || null
-    ).run();
+    // Build the complete create operation and send it to D1 as one batch.
+    // This reduces Worker <-> D1 round trips when a new client creates contacts, channels,
+    // tasks, and an activity at the same time.
+    const statements: any[] = [];
 
-    // Insert contacts
+    statements.push(
+      db.prepare(`
+        INSERT INTO leads (
+          id, name, description, category, industry, city, province, country, address, website,
+          existingWebsiteStatus, googleBusinessUrl, sourceUrl, sourceId, contactPerson, phone, email,
+          notes, source, createdMethod, stage, priority, quality, createdBy, createdByName, ownerId, ownerName,
+          createdAt, updatedAt, chatgptPackageJson, projectDomainName
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        leadId, data.name, data.description || '', data.category || '', data.industry || '', data.city || '',
+        data.province || '', data.country || 'South Africa', data.address || '', data.website || '',
+        data.existingWebsiteStatus || 'None', data.googleBusinessUrl || '', data.sourceUrl || '', data.sourceId || '',
+        data.contactPerson || '', data.phone || '', data.email || '', data.notes || '', data.source || 'Other',
+        data.createdMethod || 'manual', 'captured', data.priority || 'normal', 'verified', userId, userName, userId, userName,
+        now, now, chatgptPackageJson, data.projectDomainName || null
+      )
+    );
+
     if (data.contacts && data.contacts.length > 0) {
       for (const c of data.contacts) {
         if (!c.value) continue;
         const cid = genId('c');
-        const norm = c.type.includes('phone') || c.type === 'whatsapp' ? c.value.replace(/\D/g, '') : c.value.trim().toLowerCase();
-        await db.prepare('INSERT INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(cid, leadId, c.type, c.value, norm, c.contactPerson || data.contactPerson || '', c.position || '', now)
-          .run();
+        const norm = c.type.includes('phone') || c.type === 'whatsapp'
+          ? c.value.replace(/\D/g, '')
+          : c.value.trim().toLowerCase();
+
+        statements.push(
+          db.prepare(
+            'INSERT INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).bind(cid, leadId, c.type, c.value, norm, c.contactPerson || data.contactPerson || '', c.position || '', now)
+        );
       }
     }
 
-    // Insert channels
     if (data.channels && data.channels.length > 0) {
       for (const ch of data.channels) {
         const chId = genId('ch');
-        await db.prepare('INSERT INTO channels (id, leadId, channel, detailValue, createdAt) VALUES (?, ?, ?, ?, ?)')
-          .bind(chId, leadId, ch, null, now)
-          .run();
+        statements.push(
+          db.prepare('INSERT INTO channels (id, leadId, channel, detailValue, createdAt) VALUES (?, ?, ?, ?, ?)')
+            .bind(chId, leadId, ch, null, now)
+        );
       }
     }
 
-    // Insert first capture task (completed)
     const capId = genId('task');
-    await db.prepare(`
-      INSERT INTO tasks (id, leadId, leadName, leadStage, taskTypeId, taskTypeKey, taskTypeName, status, createdBy, createdByName, assignedTo, assignedToName, rateValue, version, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(capId, leadId, data.name, 'captured', 'tt-1', 'capture', 'Lead Research & Capture', 'completed', userId, userName, userId, userName, 0.0, 1, now).run();
+    statements.push(
+      db.prepare(`
+        INSERT INTO tasks (id, leadId, leadName, leadStage, taskTypeId, taskTypeKey, taskTypeName, status, createdBy, createdByName, assignedTo, assignedToName, rateValue, version, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(capId, leadId, data.name, 'captured', 'tt-1', 'capture', 'Lead Research & Capture', 'completed', userId, userName, userId, userName, 0.0, 1, now)
+    );
 
-    // Insert second template task (available)
     const tmplId = genId('task');
-    await db.prepare(`
-      INSERT INTO tasks (id, leadId, leadName, leadStage, taskTypeId, taskTypeKey, taskTypeName, status, createdBy, createdByName, assignedTo, assignedToName, rateValue, version, createdAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(tmplId, leadId, data.name, 'captured', 'tt-2', 'template', 'Template Prototype Creation', 'available', userId, userName, null, null, 1.0, 1, now).run();
+    statements.push(
+      db.prepare(`
+        INSERT INTO tasks (id, leadId, leadName, leadStage, taskTypeId, taskTypeKey, taskTypeName, status, createdBy, createdByName, assignedTo, assignedToName, rateValue, version, createdAt)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(tmplId, leadId, data.name, 'captured', 'tt-2', 'template', 'Template Prototype Creation', 'available', userId, userName, null, null, 1.0, 1, now)
+    );
 
-    // Create activity
-    await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), userId, userName, 'lead_created', 'lead', leadId, data.name, JSON.stringify({ source: data.source }), now)
-      .run();
+    statements.push(
+      db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(genId('act'), userId, userName, 'lead_created', 'lead', leadId, data.name, JSON.stringify({ source: data.source }), now)
+    );
 
-    const { results: lContacts } = await db.prepare('SELECT * FROM contacts WHERE leadId = ?').bind(leadId).all();
-    const lead = await db.prepare('SELECT * FROM leads WHERE id = ?').bind(leadId).first();
+    await db.batch(statements);
 
-    return { status: 200, json: { ...lead, contacts: lContacts, chatgptPackage: data.chatgptPackage } };
+    const [contactResult, leadResult] = await db.batch([
+      db.prepare('SELECT * FROM contacts WHERE leadId = ? ORDER BY createdAt ASC').bind(leadId),
+      db.prepare('SELECT * FROM leads WHERE id = ?').bind(leadId)
+    ]);
+
+    const lead = leadResult.results?.[0] || null;
+    if (!lead) return { status: 500, json: { error: 'Lead creation completed but the new lead could not be reloaded.' } };
+
+    return {
+      status: 200,
+      json: {
+        ...lead,
+        contacts: contactResult.results || [],
+        chatgptPackage: data.chatgptPackage
+      }
+    };
   }
 
   // LEADS UPDATE
@@ -497,56 +521,69 @@ export async function handleApiRequest(
       'linkCreatorId','linkCreatorName','linkCreatedAt','messageSenderId','messageSenderName','messageSentAt',
       'linkBonusAwarded','messageBonusAwarded','isDealClosed','closedAt','clientPrice','currency','deletedAt'
     ]);
+
     const leadUpdates: Record<string, any> = {};
     for (const [key, value] of Object.entries(updates || {})) {
       if (allowedColumns.has(key)) leadUpdates[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
     }
-    const columns = Object.keys(leadUpdates);
 
+    const statements: any[] = [];
+
+    const columns = Object.keys(leadUpdates);
     if (columns.length > 0) {
       const setClause = columns.map(col => `${col} = ?`).join(', ') + ', updatedAt = ?';
       const bindArgs = columns.map(col => leadUpdates[col]);
       bindArgs.push(now, leadId);
-
-      await db.prepare(`UPDATE leads SET ${setClause} WHERE id = ?`).bind(...bindArgs).run();
+      statements.push(db.prepare(`UPDATE leads SET ${setClause} WHERE id = ?`).bind(...bindArgs));
+    } else {
+      // Always preserve updatedAt so save actions are reflected in the record.
+      statements.push(db.prepare('UPDATE leads SET updatedAt = ? WHERE id = ?').bind(now, leadId));
     }
 
-    // Preserve embedded contacts/channels when editing a migrated profile in JSON mode.
     if (Array.isArray(updates?.contacts)) {
-      await db.prepare('DELETE FROM contacts WHERE leadId = ?').bind(leadId).run();
+      statements.push(db.prepare('DELETE FROM contacts WHERE leadId = ?').bind(leadId));
       for (const contact of updates.contacts) {
         if (!contact?.value) continue;
         const value = String(contact.value).trim();
         const type = String(contact.type || 'other');
         const normalized = /phone|whatsapp/i.test(type) ? value.replace(/\D/g, '') : value.toLowerCase();
-        await db.prepare('INSERT INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(genId('c'), leadId, type, value, normalized, contact.contactPerson || '', contact.position || '', now).run();
+        statements.push(
+          db.prepare('INSERT INTO contacts (id, leadId, type, value, normalizedValue, contactPerson, position, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(genId('c'), leadId, type, value, normalized, contact.contactPerson || '', contact.position || '', now)
+        );
       }
     }
 
     if (Array.isArray(updates?.channels)) {
-      await db.prepare('DELETE FROM channels WHERE leadId = ?').bind(leadId).run();
+      statements.push(db.prepare('DELETE FROM channels WHERE leadId = ?').bind(leadId));
       for (const channel of updates.channels) {
         const value = String(channel || '').trim();
         if (!value) continue;
-        await db.prepare('INSERT INTO channels (id, leadId, channel, detailValue, createdAt) VALUES (?, ?, ?, ?, ?)')
-          .bind(genId('ch'), leadId, value, null, now).run();
+        statements.push(
+          db.prepare('INSERT INTO channels (id, leadId, channel, detailValue, createdAt) VALUES (?, ?, ?, ?, ?)')
+            .bind(genId('ch'), leadId, value, null, now)
+        );
       }
     }
 
     if (updates.stage && updates.stage !== oldLead.stage) {
-      await db.prepare('INSERT INTO stageHistory (id, leadId, previousStage, newStage, changedBy, changedByName, reason, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(genId('sh'), leadId, oldLead.stage, updates.stage, userId, userName, 'Stage updated manually', now)
-        .run();
+      statements.push(
+        db.prepare('INSERT INTO stageHistory (id, leadId, previousStage, newStage, changedBy, changedByName, reason, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(genId('sh'), leadId, oldLead.stage, updates.stage, userId, userName, 'Stage updated manually', now)
+      );
 
-      await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(genId('act'), userId, userName, 'stage_changed', 'lead', leadId, oldLead.name, JSON.stringify({ from: oldLead.stage, to: updates.stage }), now)
-        .run();
+      statements.push(
+        db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(genId('act'), userId, userName, 'stage_changed', 'lead', leadId, oldLead.name, JSON.stringify({ from: oldLead.stage, to: updates.stage }), now)
+      );
     } else {
-      await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-        .bind(genId('act'), userId, userName, 'lead_updated', 'lead', leadId, oldLead.name, now)
-        .run();
+      statements.push(
+        db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .bind(genId('act'), userId, userName, 'lead_updated', 'lead', leadId, oldLead.name, null, now)
+      );
     }
+
+    await db.batch(statements);
 
     const lead = await db.prepare('SELECT * FROM leads WHERE id = ?').bind(leadId).first();
     return { status: 200, json: lead };
@@ -559,11 +596,13 @@ export async function handleApiRequest(
     if (!lead) return { status: 404, json: { error: 'Lead not found.' } };
 
     const now = new Date().toISOString();
-    await db.prepare('UPDATE leads SET deletedAt = ?, updatedAt = ? WHERE id = ?').bind(now, now, leadId).run();
 
-    await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), userId, userName, 'lead_deleted', 'lead', leadId, lead.name, now)
-      .run();
+    // Mark the lead deleted and write the audit activity in one D1 batch.
+    await db.batch([
+      db.prepare('UPDATE leads SET deletedAt = ?, updatedAt = ? WHERE id = ?').bind(now, now, leadId),
+      db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, metadataJson, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .bind(genId('act'), userId, userName, 'lead_deleted', 'lead', leadId, lead.name, null, now)
+    ]);
 
     return { status: 200, json: { success: true } };
   }
