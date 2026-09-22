@@ -53,6 +53,8 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
     };
     sharedPollers.set(url, entry);
 
+    let poll: () => Promise<void>;
+
     const scheduleNext = () => {
       if (!entry || !entry.active || entry.subscribers.size === 0) return;
       if (entry.timer) clearTimeout(entry.timer);
@@ -61,7 +63,7 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
       }, entry.intervalMs);
     };
 
-    const poll = async (): Promise<void> => {
+    poll = async (): Promise<void> => {
       if (!entry || !entry.active || entry.subscribers.size === 0) return;
       if (entry.inFlightPromise) return entry.inFlightPromise;
 
@@ -79,7 +81,6 @@ function createPoller<T>(url: string, callback: (data: T) => void, intervalMs = 
           entry.lastData = payload as T;
           entry.lastSerialized = serialized;
 
-          // Only notify React when the server payload actually changed.
           if (changed) {
             entry.subscribers.forEach((subscriber) => {
               try {
@@ -188,7 +189,9 @@ export async function createTeamMemberAccount(
     body: JSON.stringify({ adminUserId: adminUser.id, userData })
   });
   if (!res.ok) throw new Error('Failed to create team member');
-  return await res.json() as any;
+  const result = await res.json() as User;
+  await refreshData(['/api/users', '/api/activities']);
+  return result;
 }
 
 export async function updateUserRoleOrStatus(
@@ -203,6 +206,8 @@ export async function updateUserRoleOrStatus(
     body: JSON.stringify({ adminUserId: adminUser.id, targetUid, updates, reason })
   });
   if (!res.ok) throw new Error('Failed to update role or status');
+  await refreshData(['/api/users', '/api/activities']);
+
 }
 
 export async function updateUserProfileByAdmin(
@@ -217,6 +222,8 @@ export async function updateUserProfileByAdmin(
     body: JSON.stringify({ adminUserId: adminUser.id, targetUid, updates, reason })
   });
   if (!res.ok) throw new Error('Failed to update profile by admin');
+  await refreshData(['/api/users', '/api/activities']);
+
 }
 
 export async function adminResetUserPassword(
@@ -233,6 +240,8 @@ export async function adminResetUserPassword(
     const err = await res.json().catch(() => ({}));
     throw new Error((err as any)?.error || 'Failed to reset password');
   }
+  await refreshData(['/api/users']);
+
 }
 
 export async function updateOwnUserProfile(
@@ -245,6 +254,8 @@ export async function updateOwnUserProfile(
     body: JSON.stringify({ userUid, updates })
   });
   if (!res.ok) throw new Error('Failed to update own profile');
+  await refreshData(['/api/users']);
+
 }
 
 export function subscribeToLeads(callback: (leads: Lead[]) => void) {
@@ -315,10 +326,9 @@ export async function createLeadInFirestore(
     const errorBody = await res.json().catch(() => ({}));
     throw new Error((errorBody as any)?.error || 'Failed to create lead');
   }
-
-  const createdLead = await res.clone().json().catch(() => null);
+  const result = await res.json() as Lead;
   await refreshData(['/api/leads', '/api/tasks', '/api/activities']);
-  return await res.json() as any;
+  return result;
 }
 
 export async function updateLeadInFirestore(
@@ -336,8 +346,8 @@ export async function updateLeadInFirestore(
     const errorBody = await res.json().catch(() => ({}));
     throw new Error((errorBody as any)?.error || 'Failed to update lead');
   }
-
   await refreshData(['/api/leads', '/api/activities']);
+
 }
 
 export async function grabTaskAtomic(taskId: string, userId: string, userName: string): Promise<{ success: boolean; message: string; task?: Task }> {
@@ -346,9 +356,6 @@ export async function grabTaskAtomic(taskId: string, userId: string, userName: s
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ taskId, userId, userName })
   });
-  if (!res.ok) return { success: false, message: 'Failed to grab task' };
-  return await res.json() as any;
-}
   if (!res.ok) return { success: false, message: 'Failed to grab task' };
   const result = await res.json() as any;
   await refreshData(['/api/tasks', '/api/leads', '/api/activities']);
@@ -367,9 +374,6 @@ export async function completeTaskAtomic(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ taskId, userId, userName, notes, templateUrl })
   });
-  if (!res.ok) return { success: false, message: 'Failed to complete task' };
-  return await res.json() as any;
-}
   if (!res.ok) return { success: false, message: 'Failed to complete task' };
   const result = await res.json() as any;
   await refreshData(['/api/tasks', '/api/leads', '/api/activities']);
@@ -398,9 +402,6 @@ export async function recordOutreachInFirestore(
     body: JSON.stringify({ data, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to record outreach');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to record outreach');
   const result = await res.json() as any;
   await refreshData(['/api/outreach', '/api/leads', '/api/activities']);
   return result;
@@ -413,9 +414,8 @@ export async function deleteOutreachAttemptInFirestore(id: string, userId: strin
     body: JSON.stringify({ userId, userName: 'System User' })
   });
   if (!res.ok) throw new Error('Failed to delete outreach');
-}
-  if (!res.ok) throw new Error('Failed to delete outreach');
   await refreshData(['/api/outreach', '/api/leads', '/api/activities']);
+
 }
 
 export async function adminOverrideLeadOwner(
@@ -431,6 +431,8 @@ export async function adminOverrideLeadOwner(
     body: JSON.stringify({ leadId, updates: { ownerId: targetOwnerId, ownerName: targetOwnerName }, userId: adminUser.id, userName: adminUser.displayName })
   });
   if (!res.ok) throw new Error('Failed to override owner');
+  await refreshData(['/api/leads', '/api/activities']);
+
 }
 
 export async function claimLeadOwner(leadId: string, userId: string, userName: string): Promise<void> {
@@ -440,9 +442,8 @@ export async function claimLeadOwner(leadId: string, userId: string, userName: s
     body: JSON.stringify({ leadId, updates: { ownerId: userId, ownerName: userName }, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to claim owner');
-}
-  if (!res.ok) throw new Error('Failed to claim owner');
   await refreshData(['/api/leads', '/api/activities']);
+
 }
 
 export async function releaseLeadOwner(leadId: string, userId: string, userName: string): Promise<void> {
@@ -452,9 +453,8 @@ export async function releaseLeadOwner(leadId: string, userId: string, userName:
     body: JSON.stringify({ leadId, updates: { ownerId: '', ownerName: '' }, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to release owner');
-}
-  if (!res.ok) throw new Error('Failed to release owner');
   await refreshData(['/api/leads', '/api/activities']);
+
 }
 
 export async function releaseTaskAtomic(taskId: string, userId: string, userName: string): Promise<{ success: boolean; message: string }> {
@@ -463,9 +463,6 @@ export async function releaseTaskAtomic(taskId: string, userId: string, userName
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ taskId, userId, userName })
   });
-  if (!res.ok) return { success: false, message: 'Failed to release task' };
-  return await res.json() as any;
-}
   if (!res.ok) return { success: false, message: 'Failed to release task' };
   const result = await res.json() as any;
   await refreshData(['/api/tasks', '/api/leads', '/api/activities']);
@@ -488,9 +485,6 @@ export async function addLeadNoteInFirestore(
     body: JSON.stringify({ authorId, authorName, content })
   });
   if (!res.ok) throw new Error('Failed to add note');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to add note');
   const result = await res.json() as LeadNote;
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/notes`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/activities']);
   return result;
@@ -511,10 +505,8 @@ export async function adminOverrideTask(
     const errorBody = await res.json().catch(() => ({}));
     throw new Error((errorBody as any)?.error || 'Failed to override task');
   }
-}
-    throw new Error((errorBody as any)?.error || 'Failed to override task');
-  }
   await refreshData(['/api/tasks', '/api/leads', '/api/activities']);
+
 }
 
 export function subscribeToImages(leadId: string, callback: (images: ImageAsset[]) => void) {
@@ -535,9 +527,6 @@ export async function addExternalImageUrlToLead(
     body: JSON.stringify({ leadId, fileOrBase64: url, filename, caption, userId: uploadedBy, userName: uploadedByName })
   });
   if (!res.ok) throw new Error('Failed to add external image');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to add external image');
   const result = await res.json() as ImageAsset;
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/images`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/leads', '/api/activities']);
   return result;
@@ -555,9 +544,8 @@ export async function deleteImageFromLead(
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to delete image');
-}
-  if (!res.ok) throw new Error('Failed to delete image');
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/images`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/leads', '/api/activities']);
+
 }
 
 export async function uploadClipboardOrFileToFirebaseStorage(
@@ -586,9 +574,6 @@ export async function uploadClipboardOrFileToFirebaseStorage(
     body: JSON.stringify({ leadId, fileOrBase64: base64, filename, caption, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to upload image');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to upload image');
   const result = await res.json() as ImageAsset;
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/images`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/leads', '/api/activities']);
   return result;
@@ -601,9 +586,8 @@ export async function deleteLeadCascade(leadId: string, userId: string, userName
     body: JSON.stringify({ leadId, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to delete lead');
-}
-  if (!res.ok) throw new Error('Failed to delete lead');
   await refreshData(['/api/leads', '/api/tasks', '/api/outreach', '/api/activities']);
+
 }
 
 export const deleteLead = deleteLeadCascade;
@@ -615,9 +599,8 @@ export async function deleteUserProfile(adminUser: User, targetUid: string, reas
     body: JSON.stringify({ adminUserId: adminUser.id, targetUid, updates: { status: 'inactive' }, reason })
   });
   if (!res.ok) throw new Error('Failed to disable user profile');
-}
-  if (!res.ok) throw new Error('Failed to disable user profile');
   await refreshData(['/api/users', '/api/activities']);
+
 }
 
 export async function deleteContactFromLead(leadId: string, contactId: string, userId: string, userName: string): Promise<void> {
@@ -627,9 +610,8 @@ export async function deleteContactFromLead(leadId: string, contactId: string, u
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to delete contact');
-}
-  if (!res.ok) throw new Error('Failed to delete contact');
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/leads', '/api/activities']);
+
 }
 
 export async function deleteOutreachAttempt(attemptId: string, leadId: string, userId: string, userName: string): Promise<void> {
@@ -640,9 +622,6 @@ export async function deleteOutreachAttempt(attemptId: string, leadId: string, u
   });
   if (!res.ok) throw new Error('Failed to delete outreach attempt');
 }
-  if (!res.ok) throw new Error('Failed to delete outreach attempt');
-  await refreshData(['/api/outreach', '/api/leads', '/api/activities']);
-}
 
 export async function deleteLeadNote(noteId: string, leadId: string, userId: string, userName: string): Promise<void> {
   const res = await fetch(`/api/notes/${noteId}/delete`, {
@@ -651,9 +630,8 @@ export async function deleteLeadNote(noteId: string, leadId: string, userId: str
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to delete note');
-}
-  if (!res.ok) throw new Error('Failed to delete note');
   await refreshData([`/api/leads/${encodeURIComponent(leadId)}/notes`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/activities']);
+
 }
 
 export async function deleteTask(taskId: string, leadId: string, userId: string, userName: string): Promise<void> {
@@ -663,9 +641,8 @@ export async function deleteTask(taskId: string, leadId: string, userId: string,
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to delete task');
-}
-  if (!res.ok) throw new Error('Failed to delete task');
   await refreshData(['/api/tasks', '/api/leads', '/api/activities']);
+
 }
 
 export async function clearLeadPrototypeUrl(leadId: string, userId: string, userName: string): Promise<void> {
@@ -675,9 +652,8 @@ export async function clearLeadPrototypeUrl(leadId: string, userId: string, user
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to clear prototype URL');
-}
-  if (!res.ok) throw new Error('Failed to clear prototype URL');
   await refreshData(['/api/leads', `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/activities']);
+
 }
 
 export async function attachLiveWebsiteLinkToLead(
@@ -692,9 +668,6 @@ export async function attachLiveWebsiteLinkToLead(
     body: JSON.stringify({ url, userId, userName })
   });
   if (!res.ok) throw new Error('Failed to attach live link');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to attach live link');
   const result = await res.json() as any;
   await refreshData(['/api/leads', '/api/financial-records', '/api/activities']);
   return result;
@@ -707,9 +680,8 @@ export async function removeLiveWebsiteLinkFromLead(leadId: string, userId: stri
     body: JSON.stringify({ userId, userName, reason })
   });
   if (!res.ok) throw new Error('Failed to remove live link');
-}
-  if (!res.ok) throw new Error('Failed to remove live link');
   await refreshData(['/api/leads', '/api/financial-records', '/api/activities']);
+
 }
 
 export async function reassignLiveWebsiteLinkToLead(
@@ -726,9 +698,6 @@ export async function reassignLiveWebsiteLinkToLead(
     body: JSON.stringify({ newLeadId, url, userId, userName, reason })
   });
   if (!res.ok) throw new Error('Failed to reassign live link');
-  return await res.json() as any;
-}
-  if (!res.ok) throw new Error('Failed to reassign live link');
   const result = await res.json() as any;
   await refreshData(['/api/leads', '/api/activities']);
   return result;
@@ -741,9 +710,8 @@ export async function evaluateAndAwardDealBonuses(leadId: string, userId: string
     body: JSON.stringify({ userId, userName })
   });
   if (!res.ok) throw new Error('Failed to award bonuses');
-}
-  if (!res.ok) throw new Error('Failed to award bonuses');
   await refreshData(['/api/leads', '/api/financial-records', '/api/activities']);
+
 }
 
 export function subscribeToFinancialRecords(callback: (records: FinancialRecord[]) => void): () => void {
@@ -757,9 +725,8 @@ export async function adminReverseFinancialRecord(recordId: string, reason: stri
     body: JSON.stringify({ adminUserId: adminUser.id, reason })
   });
   if (!res.ok) throw new Error('Failed to reverse financial record');
-}
-  if (!res.ok) throw new Error('Failed to reverse financial record');
   await refreshData(['/api/financial-records']);
+
 }
 
 export async function adminUpdateFinancialRecord(
@@ -774,9 +741,8 @@ export async function adminUpdateFinancialRecord(
     body: JSON.stringify({ adminUserId: adminUser.id, updates, reason })
   });
   if (!res.ok) throw new Error('Failed to update financial record');
-}
-  if (!res.ok) throw new Error('Failed to update financial record');
   await refreshData(['/api/financial-records']);
+
 }
 
 export async function adminCreateManualFinancialRecord(payload: any, adminUser: User): Promise<void> {
@@ -786,7 +752,6 @@ export async function adminCreateManualFinancialRecord(payload: any, adminUser: 
     body: JSON.stringify({ adminUserId: adminUser.id, payload })
   });
   if (!res.ok) throw new Error('Failed to create manual financial record');
-}
-  if (!res.ok) throw new Error('Failed to create manual financial record');
   await refreshData(['/api/financial-records']);
+
 }
