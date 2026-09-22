@@ -362,12 +362,11 @@ export async function handleApiRequest(
       'CASE WHEN chatgptPackageJson IS NOT NULL AND chatgptPackageJson != \'\' THEN 1 ELSE 0 END AS hasChatgptPackage'
     ].join(', ');
 
-    const [leadResult, contactResult, channelResult, imageCountResult, taskCountResult] = await db.batch([
+    // Pipeline list payload: keep this endpoint focused on fields needed to render/filter
+    // the list. Heavy lead detail data is loaded by /api/leads/:id/detail when opened.
+    const [leadResult, contactResult] = await db.batch([
       db.prepare(`SELECT ${leadColumns} FROM leads WHERE deletedAt IS NULL ORDER BY updatedAt DESC`).bind(),
-      db.prepare('SELECT * FROM contacts WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind(),
-      db.prepare('SELECT * FROM channels WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind(),
-      db.prepare("SELECT leadId, COUNT(*) AS imagesCount FROM images WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind(),
-      db.prepare("SELECT leadId, COUNT(*) AS openTasksCount FROM tasks WHERE status NOT IN ('completed', 'cancelled') AND leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) GROUP BY leadId").bind()
+      db.prepare('SELECT * FROM contacts WHERE leadId IN (SELECT id FROM leads WHERE deletedAt IS NULL) ORDER BY createdAt ASC').bind()
     ]);
 
     const contactsByLead = new Map<string, any[]>();
@@ -377,29 +376,11 @@ export async function handleApiRequest(
       contactsByLead.set(contact.leadId, list);
     }
 
-    const channelsByLead = new Map<string, any[]>();
-    for (const channel of (channelResult.results || []) as any[]) {
-      const list = channelsByLead.get(channel.leadId) || [];
-      list.push(channel);
-      channelsByLead.set(channel.leadId, list);
-    }
 
-    const imageCounts = new Map<string, number>();
-    for (const row of (imageCountResult.results || []) as any[]) {
-      imageCounts.set(row.leadId, Number(row.imagesCount || 0));
-    }
-
-    const openTaskCounts = new Map<string, number>();
-    for (const row of (taskCountResult.results || []) as any[]) {
-      openTaskCounts.set(row.leadId, Number(row.openTasksCount || 0));
-    }
 
     const fullLeads = (leadResult.results || []).map((l: any) => ({
       ...l,
       contacts: contactsByLead.get(l.id) || [],
-      channels: channelsByLead.get(l.id) || [],
-      imagesCount: imageCounts.get(l.id) || 0,
-      openTasksCount: openTaskCounts.get(l.id) || 0,
       // Keep the legacy truthy check lightweight; the full package is loaded by the detail endpoint.
       chatgptPackage: l.hasChatgptPackage ? { projectDomainName: l.projectDomainName || '' } : undefined
     }));
