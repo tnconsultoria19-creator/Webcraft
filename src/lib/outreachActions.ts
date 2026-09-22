@@ -132,7 +132,7 @@ I came across ${businessName} and noticed that you don't have a website. So I pu
 Here's the link:
 👉 ${preview}
 
-If you like it, I'm currently running a special to get you online for R650 per year, payable in 3 installments, and I can set everything up for you.
+If you like it, I'm currently running a special to get you online for R650 per year (payable in 3 installments), and I can set everything up for you.
 
 Best regards,
 ${WEBCRAFT_OUTREACH_SENDER.name}
