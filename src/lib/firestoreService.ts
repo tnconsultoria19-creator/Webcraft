@@ -637,6 +637,21 @@ export async function deleteLeadCascade(leadId: string, userId: string, userName
 
 }
 
+export async function deleteLeadsCascade(leadIds: string[], userId: string, userName: string): Promise<number> {
+  const res = await fetch('/api/leads/delete-bulk', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ leadIds, userId, userName })
+  });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => null);
+    throw new Error(payload?.error || 'Failed to delete selected leads');
+  }
+  const payload = await res.json();
+  void refreshData(['/api/leads', '/api/tasks', '/api/outreach', '/api/activities']);
+  return Number(payload?.deletedCount || 0);
+}
+
 export const deleteLead = deleteLeadCascade;
 
 export async function deleteUserProfile(adminUser: User, targetUid: string, reason?: string): Promise<void> {
