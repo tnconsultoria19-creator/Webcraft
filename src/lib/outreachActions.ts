@@ -100,6 +100,10 @@ export function getLeadContactPerson(lead: Lead): string {
     if (contactWithPerson?.contactPerson) return contactWithPerson.contactPerson.trim();
   }
 
+  // If no individual/profile name was provided, address the business directly.
+  // This is preferable to inventing or guessing a person's name.
+  if (lead.name && lead.name.trim()) return lead.name.trim();
+
   return 'Business Owner';
 }
 
