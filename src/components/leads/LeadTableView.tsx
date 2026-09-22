@@ -8,12 +8,14 @@ import { ConfirmModal } from '../common/ConfirmModal';
 
 interface LeadTableViewProps {
   leads: Lead[];
+  isLoading?: boolean;
   onSelectLead: (leadId: string) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
 }
 
 export const LeadTableView: React.FC<LeadTableViewProps> = ({
   leads,
+  isLoading = false,
   onSelectLead,
   onDeleteLead
 }) => {
@@ -38,7 +40,16 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-[#DDD8CE] text-[#68645D]">
-            {leads.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={10} className="py-16 text-center">
+                  <div className="inline-flex items-center gap-3 text-[#68645D] font-medium">
+                    <span className="w-5 h-5 rounded-full border-2 border-[#245F6B]/20 border-t-[#245F6B] animate-spin" />
+                    <span>Loading prospects...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : leads.length === 0 ? (
               <tr>
                 <td colSpan={10} className="py-16 text-center text-[#68645D] font-medium italic">
                   No matching prospects found in pipeline.
