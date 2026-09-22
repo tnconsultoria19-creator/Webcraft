@@ -8,6 +8,7 @@ import { ConfirmModal } from '../common/ConfirmModal';
 
 interface LeadKanbanViewProps {
   leads: Lead[];
+  isLoading?: boolean;
   onSelectLead: (leadId: string) => void;
   onUpdateStage: (leadId: string, newStage: LeadStage) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
@@ -25,11 +26,23 @@ const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
 
 export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
   leads,
+  isLoading = false,
   onSelectLead,
   onUpdateStage,
   onDeleteLead
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[500px] bg-white border border-[#DDD8CE] rounded-2xl">
+        <div className="inline-flex items-center gap-3 text-[#68645D] font-medium text-sm">
+          <span className="w-5 h-5 rounded-full border-2 border-[#245F6B]/20 border-t-[#245F6B] animate-spin" />
+          <span>Loading prospects...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-4 overflow-x-auto pb-6 pt-1 min-h-[650px] font-['Poppins']">
       {KANBAN_COLUMNS.map((col) => {
