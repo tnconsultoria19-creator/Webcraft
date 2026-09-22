@@ -66,10 +66,19 @@ export const api = {
     const userId = localStorage.getItem('webcraft_user_id');
     if (!userId) throw new Error('Not authenticated');
 
-    const res = await fetch(`/api/users/${encodeURIComponent(userId)}`);
-    if (!res.ok) throw new Error('Failed to fetch current user');
-    const user: User = await res.json() as any;
-    return { user };
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(`/api/users/${encodeURIComponent(userId)}`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('Failed to fetch current user');
+      const user: User = await res.json() as any;
+      return { user };
+    } finally {
+      clearTimeout(timeoutId);
+    }
   },
 
   getUsers: async (): Promise<{ users: User[] }> => {
