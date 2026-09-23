@@ -960,7 +960,8 @@ export async function handleApiRequest(
       return { status: 413, json: { error: 'File exceeds the 10MB upload limit.' } };
     }
 
-    const safeName = (filename || `upload_${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const rawName = String(filename || `upload_${Date.now()}`).replace(/\\/g, '/');
+    const safeName = rawName.split('/').filter(Boolean).filter((part) => part !== '.' && part !== '..').map((part) => part.replace(/[^a-zA-Z0-9._-]/g, '_')).join('/') || `upload_${Date.now()}`;
     const objectKey = `leads/${leadId}/files/${Date.now()}_${genId('file')}_${safeName}`;
 
     if (env?.BUCKET) {
