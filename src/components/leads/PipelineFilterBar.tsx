@@ -139,6 +139,7 @@ export const PipelineFilterBar: React.FC<PipelineFilterBarProps> = ({
               <option value="all">All Stages</option>
               <option value="captured">Captured</option>
               <option value="ready_for_outreach">Ready for Outreach</option>
+              <option value="approved">Approved</option>
               <option value="contacted">Contacted</option>
               <option value="in_discussion">In Discussion</option>
               <option value="won_deal">Won Deal</option>
