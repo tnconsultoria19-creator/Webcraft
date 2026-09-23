@@ -116,7 +116,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-[#F4F1EA] text-[#68645D] font-bold text-[11px] uppercase tracking-wider border-b border-[#DDD8CE]">
-              <th className="py-4.5 px-3 w-12">
+              <th className="py-3 px-2 w-10">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); toggleSelectAll(); }}
@@ -127,16 +127,16 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                   {allVisibleSelected ? <Check className="w-4 h-4 text-[#245F6B]" /> : someVisibleSelected ? <Minus className="w-4 h-4 text-[#245F6B]" /> : null}
                 </button>
               </th>
-              <th className="py-4.5 px-5">Prospect ID</th>
-              <th className="py-4.5 px-5">Business Name</th>
-              <th className="py-4.5 px-5">Contact Details</th>
-              <th className="py-4.5 px-5">Country / Region</th>
-              <th className="py-4.5 px-5">Source</th>
-              <th className="py-4.5 px-5">Stage</th>
-              <th className="py-4.5 px-5">Created</th>
-              <th className="py-4.5 px-5">Owner / Grab</th>
-              <th className="py-4.5 px-5">Prototype</th>
-              <th className="py-4.5 px-5 text-right">Action</th>
+              <th className="py-3 px-3">Prospect ID</th>
+              <th className="py-3 px-3">Business Name</th>
+              <th className="py-3 px-3">Contact Details</th>
+              <th className="py-3 px-3">Country / Region</th>
+              <th className="py-3 px-3">Source</th>
+              <th className="py-3 px-3">Stage</th>
+              <th className="py-3 px-3">Created</th>
+              <th className="py-3 px-3">Owner / Grab</th>
+              <th className="py-3 px-3">Prototype</th>
+              <th className="py-3 px-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#DDD8CE] text-[#68645D]">
@@ -184,11 +184,11 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       </button>
                     </td>
 
-                    <td className="py-4.5 px-5 text-xs font-bold text-[#245F6B]">
+                    <td className="py-3 px-3 text-xs font-bold text-[#245F6B]">
                       {lead.id}
                     </td>
 
-                    <td className="py-4.5 px-5">
+                    <td className="py-3 px-3">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-[#292A29] group-hover:text-[#245F6B] transition-colors text-xs">
                           {lead.name}
@@ -217,7 +217,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-4.5 px-5">
+                    <td className="py-3 px-3">
                       {primaryContact ? (
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-[#292A29] font-medium text-xs">
@@ -235,7 +235,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-4.5 px-5">
+                    <td className="py-3 px-3">
                       <div className="flex items-center gap-1.5 font-medium text-xs text-[#292A29]">
                         <span className="text-sm">{country.flag}</span>
                         <span>{country.name}</span>
@@ -247,23 +247,23 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-4.5 px-5 text-[#68645D] font-medium text-xs">
+                    <td className="py-3 px-3 text-[#68645D] font-medium text-xs">
                       {lead.source}
                     </td>
 
-                    <td className="py-4.5 px-5">
+                    <td className="py-3 px-3">
                       <span className="px-3 py-1 rounded-full text-[11px] font-bold uppercase bg-[#E5EEEE] text-[#245F6B]">
                         {getStageLabel(lead.stage)}
                       </span>
                     </td>
 
-                    <td className="py-4.5 px-5 text-[#68645D] text-[11px] font-mono whitespace-nowrap">
+                    <td className="py-3 px-3 text-[#68645D] text-[11px] font-mono whitespace-nowrap">
                       {formatDateTime(lead.createdAt)}
                     </td>
 
-                    <td className="py-4.5 px-5">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <div className="min-w-[105px]">
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <div className="min-w-[90px]">
                           <div className="text-xs font-semibold text-[#292A29]">
                             {isOwnedByMe ? 'You' : ownerName || 'Unassigned'}
                           </div>
@@ -271,7 +271,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             {isOwnedByMe ? 'Grabbed by you' : isOwned ? `Grabbed by ${ownerName}` : 'Not grabbed yet'}
                           </div>
                         </div>
-                        {!isOwned && (
+                        {!isOwned && currentUser.role !== 'admin' && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -279,7 +279,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                               void handleGrabLead(lead);
                             }}
                             disabled={grabbingLeadId === lead.id}
-                            className="px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-2.5 py-1 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Grab this prospect"
                           >
                             <Hand className="w-3.5 h-3.5" />
@@ -289,7 +289,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       </div>
                     </td>
 
-                    <td className="py-4.5 px-5">
+                    <td className="py-3 px-3">
                       {lead.templateUrl ? (
                         <a
                           href={formatExternalUrl(lead.templateUrl)}
@@ -305,8 +305,8 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                       )}
                     </td>
 
-                    <td className="py-4.5 px-5 text-right">
-                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                    <td className="py-3 px-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
                         {lead.stage === 'ready_for_outreach' && (
                           <>
                             <button
@@ -350,7 +350,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             e.stopPropagation();
                             onSelectLead(lead.id);
                           }}
-                          className="px-4 py-1.5 bg-[#245F6B] hover:bg-[#1E505A] text-white rounded-full text-xs font-semibold transition-colors cursor-pointer shadow-xs"
+                          className="px-3 py-1.5 bg-[#245F6B] hover:bg-[#1E505A] text-white rounded-full text-xs font-semibold transition-colors cursor-pointer shadow-xs"
                           title="Open Lead Workspace"
                         >
                           Open Plan
