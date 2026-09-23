@@ -508,6 +508,35 @@ export async function handleApiRequest(
       if (allowedColumns.has(key)) leadUpdates[key] = typeof value === 'boolean' ? (value ? 1 : 0) : value;
     }
 
+    // Ownership is a first-grab lock. Never allow one user to overwrite another user's owner.
+    if (Object.prototype.hasOwnProperty.call(leadUpdates, 'ownerId')) {
+      const requestedOwnerId = String(leadUpdates.ownerId || '').trim();
+      const currentOwnerId = String((oldLead as any).ownerId || '').trim();
+
+      if (currentOwnerId && currentOwnerId !== requestedOwnerId) {
+        return {
+          status: 409,
+          json: { error: "This prospect is already grabbed by " + ((oldLead as any).ownerName || currentOwnerId) + "." }
+        };
+      }
+
+      if (!currentOwnerId && requestedOwnerId) {
+        const claimResult = await db.prepare(
+          "UPDATE leads SET ownerId = ?, ownerName = ?, updatedAt = ? WHERE id = ? AND (ownerId IS NULL OR ownerId = '')"
+        ).bind(requestedOwnerId, leadUpdates.ownerName || userName || '', now, leadId).run();
+
+        if (!claimResult.meta || claimResult.meta.changes !== 1) {
+          return {
+            status: 409,
+            json: { error: "This prospect was already grabbed by another team member." }
+          };
+        }
+
+        delete leadUpdates.ownerId;
+        delete leadUpdates.ownerName;
+      }
+    }
+
     const statements: any[] = [];
 
     const columns = Object.keys(leadUpdates);
