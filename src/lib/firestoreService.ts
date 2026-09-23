@@ -620,8 +620,10 @@ export async function uploadClipboardOrFileToFirebaseStorage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ leadId, fileOrBase64: base64, filename, caption, userId, userName })
   });
-  if (!res.ok) throw new Error('Failed to upload image');
-  const result = await res.json() as ImageAsset;
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((payload as any)?.error || 'Failed to upload file');
+  const result = payload as ImageAsset;
+  
   void refreshData([`/api/leads/${encodeURIComponent(leadId)}/images`, `/api/leads/${encodeURIComponent(leadId)}/detail`, '/api/leads', '/api/activities']);
   return result;
 }
