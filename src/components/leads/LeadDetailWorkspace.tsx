@@ -398,6 +398,105 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
     }
   };
 
+  // Drag & drop + folder upload helpers
+  const isSupportedAttachment = (file: File) => {
+    const name = file.name.toLowerCase();
+    return file.size > 0 && (
+      file.type.startsWith('image/') ||
+      ['.pdf','.doc','.docx','.xls','.xlsx','.txt','.csv','.html','.css','.js','.json','.zip'].some(ext => name.endsWith(ext))
+    );
+  };
+
+  const readDirectoryEntry = async (entry: any, parentPath = ''): Promise<File[]> => {
+    if (entry?.isFile) {
+      return await new Promise<File[]>((resolve, reject) => {
+        entry.file(
+          (file: File) => {
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: parentPath ? `${parentPath}/${file.name}` : file.name,
+              configurable: true
+            });
+            resolve([file]);
+          },
+          reject
+        );
+      });
+    }
+
+    if (entry?.isDirectory) {
+      const reader = entry.createReader();
+      const files: File[] = [];
+      const nextBatch = async (): Promise<void> => {
+        const entries = await new Promise<any[]>((resolve, reject) =>
+          reader.readEntries(resolve, reject)
+        );
+        if (!entries.length) return;
+        for (const child of entries) {
+          const childFiles = await readDirectoryEntry(
+            child,
+            parentPath ? `${parentPath}/${entry.name}` : entry.name
+          );
+          files.push(...childFiles);
+        }
+        await nextBatch();
+      };
+      await nextBatch();
+      return files;
+    }
+
+    return [];
+  };
+
+  const collectDroppedFiles = async (dataTransfer: DataTransfer): Promise<File[]> => {
+    const items = Array.from(dataTransfer.items || []);
+    const entries = items
+      .map((item: any) => item.webkitGetAsEntry?.())
+      .filter(Boolean);
+
+    if (entries.length > 0) {
+      const allFiles: File[] = [];
+      for (const entry of entries) {
+        allFiles.push(...await readDirectoryEntry(entry));
+      }
+      return allFiles;
+    }
+
+    return Array.from(dataTransfer.files || []);
+  };
+
+  const uploadAttachmentFiles = async (files: File[], sourceLabel: string) => {
+    const supportedFiles = files.filter(isSupportedAttachment);
+    if (!supportedFiles.length) {
+      alert('No supported files found. Images, PDF, DOC/DOCX, XLS/XLSX, TXT, CSV, HTML, CSS, JS, JSON and ZIP are supported.');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      let uploaded = 0;
+      for (const file of supportedFiles) {
+        const relativeName = (file as any).webkitRelativePath || file.name;
+        await uploadClipboardOrFileToFirebaseStorage(
+          lead!.id,
+          file,
+          currentUser.id,
+          currentUser.displayName,
+          relativeName,
+          sourceLabel
+        );
+        uploaded++;
+      }
+
+      setPasteToast(`${uploaded} file${uploaded === 1 ? '' : 's'} uploaded successfully.`);
+      setTimeout(() => setPasteToast(null), 3000);
+      setActiveTab('images');
+    } catch (err: any) {
+      alert(err.message || 'Failed to upload file(s).');
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
   // Drag & drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -416,65 +515,22 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
     e.stopPropagation();
     setIsDragOver(false);
 
-    if (!lead || !e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    if (!lead) return;
 
-    const files: File[] = (Array.from(e.dataTransfer.files) as File[]).filter((f) => f.type.startsWith('image/'));
-    if (files.length === 0) return;
-
-    setIsUploadingImage(true);
     try {
-      let uploaded = 0;
-      for (const file of files) {
-        await uploadClipboardOrFileToFirebaseStorage(
-          lead.id,
-          file,
-          currentUser.id,
-          currentUser.displayName,
-          file.name,
-          'Dropped picture'
-        );
-      }
-      setActiveTab('images');
+      const files = await collectDroppedFiles(e.dataTransfer);
+      await uploadAttachmentFiles(files, 'Dropped file/folder');
     } catch (err: any) {
-      alert(err.message || 'Failed to attach dropped image(s)');
-    } finally {
+      alert(err.message || 'Failed to read the dropped folder/files.');
       setIsUploadingImage(false);
     }
   };
 
-  // Attach Image via File Input
+  // Attach files/folders via File Input
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!lead || !e.target.files || e.target.files.length === 0) return;
-    const files: File[] = (Array.from(e.target.files) as File[]).filter((f) => {
-      const name = f.name.toLowerCase();
-      return f.size > 0 && (
-        f.type.startsWith('image/') ||
-        ['.pdf','.doc','.docx','.xls','.xlsx','.txt','.csv','.html','.css','.js','.json','.zip'].some(ext => name.endsWith(ext))
-      );
-    });
-    if (files.length === 0) return;
-
-    setIsUploadingImage(true);
-    try {
-      for (const file of files) {
-        await uploadClipboardOrFileToFirebaseStorage(
-          lead.id,
-          file,
-          currentUser.id,
-          currentUser.displayName,
-          file.name,
-          'Uploaded file'
-        );
-        uploaded++;
-      }
-      setPasteToast(`${uploaded} file${uploaded === 1 ? '' : 's'} uploaded successfully.`);
-      setTimeout(() => setPasteToast(null), 3000);
-      setActiveTab('images');
-    } catch (err: any) {
-      alert(err.message || 'Failed to upload image(s)');
-    } finally {
-      setIsUploadingImage(false);
-    }
+    await uploadAttachmentFiles(Array.from(e.target.files), 'Uploaded file/folder');
+    e.target.value = '';
   };
 
   // Attach Image via URL input
