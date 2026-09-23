@@ -113,11 +113,31 @@ export function getLeadContactPerson(lead: Lead): string {
  * the same sender details and pricing.
  */
 const WEBCRAFT_OUTREACH_SENDER = {
-  name: 'Shiro',
-  title: 'Web Designer',
+  name: 'Shiro Silvester',
+  company: 'Silvestre Solutions',
   email: 'info@silvestre.co.za',
-  phone: '081 746 1041'
+  phone: '+27 81 746 1041',
+  website: 'www.silvestre.co.za'
 };
+
+function getOutreachRecipient(lead: Lead): { name: string; isIndividual: boolean } {
+  const individual =
+    lead.contactPerson?.trim() ||
+    lead.contacts?.find((c) => c.contactPerson?.trim())?.contactPerson?.trim() ||
+    '';
+
+  return {
+    name: individual || lead.name?.trim() || 'there',
+    isIndividual: Boolean(individual)
+  };
+}
+
+function getClickablePreviewUrl(lead: Lead): string {
+  const raw = (lead.templateUrl || lead.previewUrl || '').trim();
+  if (!raw) return '[Insert Link to Preview]';
+  return /^https?:\\/\\//i.test(raw) ? raw : `https://${raw}`;
+}
+
 
 /**
  * Generates the English sales outreach pitch.
@@ -125,22 +145,27 @@ const WEBCRAFT_OUTREACH_SENDER = {
  * while the business name is used in the body.
  */
 export function generateEnglishPitch(lead: Lead, _senderName?: string, _portfolioUrl?: string): string {
-  const person = getLeadContactPerson(lead);
+  const recipient = getOutreachRecipient(lead);
   const businessName = lead.name || 'your business';
-  const preview = lead.templateUrl || lead.previewUrl || '[Insert Link to Preview]';
+  const preview = getClickablePreviewUrl(lead);
 
-  return `Hi ${person},
+  const opening = recipient.isIndividual
+    ? `I came across ${businessName} and noticed that you don't have a website. So I put together a modern concept for you.`
+    : `I came across your business and noticed that you don't have a website. So I put together a modern concept for ${businessName}.`;
 
-I came across ${businessName} and noticed that you don't have a website. So I put together a modern concept for you.
+  return `Hi ${recipient.name},
+
+${opening}
 
 Here's the link:
-👉 ${preview}
+${preview}
 
 If you like it, I'm currently running a special to get you online for R650 per year (payable in 3 installments), and I can set everything up for you.
 
 Best regards,
 ${WEBCRAFT_OUTREACH_SENDER.name}
-${WEBCRAFT_OUTREACH_SENDER.title}
+${WEBCRAFT_OUTREACH_SENDER.company}
+${WEBCRAFT_OUTREACH_SENDER.website}
 ${WEBCRAFT_OUTREACH_SENDER.email}
 ${WEBCRAFT_OUTREACH_SENDER.phone}`;
 }
@@ -148,29 +173,32 @@ ${WEBCRAFT_OUTREACH_SENDER.phone}`;
 /**
  * Generates the Angolan Portuguese sales outreach pitch (Angola: 30.000 Kz/ano pagos em 3 prestações)
  */
-export function generateAngolanPortuguesePitch(lead: Lead, senderName?: string, portfolioUrl?: string): string {
-  const person = getLeadContactPerson(lead);
+export function generateAngolanPortuguesePitch(lead: Lead, _senderName?: string, _portfolioUrl?: string): string {
+  const recipient = getOutreachRecipient(lead);
   const businessName = lead.name || 'a vossa empresa';
-  const preview = lead.templateUrl || lead.previewUrl || '[Inserir Link de Pré-visualização]';
-  const name = senderName || 'Olisbel' || 'WebCraft Studio';
-  const portfolio = portfolioUrl || 'https://webcraftstudio.com';
+  const preview = getClickablePreviewUrl(lead);
   const needsRedesign = lead.existingWebsiteStatus === 'Outdated' || (lead.website && lead.website.trim().length > 0);
 
   const websiteSentence = needsRedesign
-    ? "notei que o vosso site beneficiaria de uma modernização, por isso criei um novo conceito de design para vocês:"
-    : "notei que ainda não têm um site, por isso criei um conceito de design moderno para vocês:";
+    ? `notei que o vosso site beneficiaria de uma modernização, por isso criei um novo conceito de design para ${businessName}.`
+    : recipient.isIndividual
+      ? `notei que ainda não têm um site, por isso criei um conceito de design moderno para ${businessName}.`
+      : `notei que a vossa empresa ainda não tem um site, por isso criei um conceito de design moderno para ${businessName}.`;
 
-  return `Olá ${person},
+  return `Olá ${recipient.name},
 
-Vi a ${businessName} e ${websiteSentence}
+Vi ${businessName} e ${websiteSentence}
 
-👉 ${preview}
+${preview}
 
 Se gostarem da direção, estou com uma promoção especial para vos colocar online por apenas 30.000 Kz/ano (pagos em 3 prestações), e posso tratar de tudo para vocês.
 
 Melhores cumprimentos,
-${name}
-🌐 ${portfolio}`;
+${WEBCRAFT_OUTREACH_SENDER.name}
+${WEBCRAFT_OUTREACH_SENDER.company}
+${WEBCRAFT_OUTREACH_SENDER.website}
+${WEBCRAFT_OUTREACH_SENDER.email}
+${WEBCRAFT_OUTREACH_SENDER.phone}`;
 }
 
 /**
