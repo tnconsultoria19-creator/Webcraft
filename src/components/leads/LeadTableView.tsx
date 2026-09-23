@@ -271,8 +271,18 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             {isOwnedByMe ? 'Grabbed by you' : isOwned ? `Grabbed by ${ownerName}` : 'Not grabbed yet'}
                           </div>
                         </div>
-                        {!isOwned && (
+                        {isOwnedByMe && (
                           <button
+                            type="button"
+                            disabled
+                            className="px-2.5 py-1 bg-[#E5EEEE] text-[#245F6B] rounded-full text-[11px] font-bold flex items-center gap-1 opacity-80 cursor-default"
+                            title="This prospect is already grabbed by you"
+                          >
+                            <Hand className="w-3.5 h-3.5" />
+                            Grabbed
+                          </button>
+                        )}
+                        {!isOwned && (
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
