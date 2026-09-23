@@ -135,7 +135,7 @@ function getOutreachRecipient(lead: Lead): { name: string; isIndividual: boolean
 function getClickablePreviewUrl(lead: Lead): string {
   const raw = (lead.templateUrl || lead.previewUrl || '').trim();
   if (!raw) return '[Insert Link to Preview]';
-  return /^https?:\\/\\//i.test(raw) ? raw : `https://${raw}`;
+  return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
 }
 
 
