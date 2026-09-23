@@ -415,7 +415,7 @@ export async function handleApiRequest(
         data.province || '', data.country || 'South Africa', data.address || '', data.website || '',
         data.existingWebsiteStatus || 'None', data.googleBusinessUrl || '', data.sourceUrl || '', data.sourceId || '',
         data.contactPerson || '', data.phone || '', data.email || '', data.notes || '', data.source || 'Other',
-        data.createdMethod || 'manual', 'captured', data.priority || 'normal', 'verified', userId, userName, userId, userName,
+        data.createdMethod || 'manual', 'captured', data.priority || 'normal', 'verified', userId, userName, '', '',
         now, now, chatgptPackageJson, data.projectDomainName || null
       )
     );
