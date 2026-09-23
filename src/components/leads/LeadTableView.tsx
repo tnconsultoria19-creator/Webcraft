@@ -283,6 +283,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                           </button>
                         )}
                         {!isOwned && (
+                          <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
