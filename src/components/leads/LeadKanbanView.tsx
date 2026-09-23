@@ -202,6 +202,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           </div>
                         )}
                         {col.id !== 'ready_for_outreach' && (
+                          <>
                         <button
                           type="button"
                           onClick={() => prevStage && onUpdateStage(lead.id, prevStage as LeadStage)}
@@ -227,6 +228,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           <span>{col.id === 'approved' ? 'Mark Sent' : 'Forward'}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
+                          </>
                         )}
                       </div>
 
