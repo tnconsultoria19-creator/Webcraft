@@ -5,10 +5,11 @@ import { getStageLabel, formatDateTime, formatExternalUrl } from '../../lib/util
 import { getCountryByName } from '../../lib/currencyUtils';
 import { findLeadDuplicates } from '../../lib/searchUtils';
 import { ConfirmModal } from '../common/ConfirmModal';
-import { claimLeadOwner, getUserProfile } from '../../lib/firestoreService';
+import { claimLeadOwner } from '../../lib/firestoreService';
 
 interface LeadTableViewProps {
   leads: Lead[];
+  currentUser: User;
   isLoading?: boolean;
   onSelectLead: (leadId: string) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
@@ -17,6 +18,7 @@ interface LeadTableViewProps {
 
 export const LeadTableView: React.FC<LeadTableViewProps> = ({
   leads,
+  currentUser,
   isLoading = false,
   onSelectLead,
   onDeleteLead,
@@ -26,17 +28,8 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-  const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [grabbingLeadId, setGrabbingLeadId] = useState<string | null>(null);
   const [claimedOwners, setClaimedOwners] = useState<Record<string, { id: string; name: string }>>({});
-
-  useEffect(() => {
-    const uid = typeof window !== 'undefined' ? localStorage.getItem('webcraft_user_id') : null;
-    if (!uid) return;
-    getUserProfile(uid).then((user) => {
-      if (user) setSessionUser(user);
-    }).catch(() => undefined);
-  }, []);
 
   const visibleLeadIds = useMemo(() => leads.map((lead) => lead.id), [leads]);
   const selectedVisibleCount = visibleLeadIds.filter((id) => selectedIds.has(id)).length;
@@ -68,14 +61,14 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
   };
 
   const handleGrabLead = async (lead: Lead) => {
-    if (!sessionUser || lead.ownerId || grabbingLeadId) return;
+    if (lead.ownerId === currentUser.id || grabbingLeadId) return;
 
     setGrabbingLeadId(lead.id);
     try {
-      await claimLeadOwner(lead.id, sessionUser.id, sessionUser.displayName);
+      await claimLeadOwner(lead.id, currentUser.id, currentUser.displayName);
       setClaimedOwners((previous) => ({
         ...previous,
-        [lead.id]: { id: sessionUser.id, name: sessionUser.displayName }
+        [lead.id]: { id: currentUser.id, name: currentUser.displayName }
       }));
     } catch (err: any) {
       alert(err?.message || 'Failed to grab this prospect.');
@@ -169,7 +162,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                 const ownerId = claimedOwner?.id || lead.ownerId;
                 const ownerName = claimedOwner?.name || lead.ownerName;
                 const isOwned = Boolean(ownerId);
-                const isOwnedByMe = Boolean(sessionUser && ownerId === sessionUser.id);
+                const isOwnedByMe = ownerId === currentUser.id;
 
                 return (
                   <tr
@@ -267,30 +260,31 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                     </td>
 
                     <td className="py-4.5 px-5">
-                      {isOwned ? (
-                        <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="min-w-[105px]">
                           <div className="text-xs font-semibold text-[#292A29]">
-                            {isOwnedByMe ? 'You' : ownerName || 'Assigned'}
+                            {isOwnedByMe ? 'You' : ownerName || 'Unassigned'}
                           </div>
                           <div className="text-[10px] text-[#969188]">
-                            Grabbed by {ownerName || 'team member'}
+                            {isOwnedByMe ? 'This prospect is yours' : isOwned ? `Owned by ${ownerName}` : 'Not grabbed yet'}
                           </div>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            void handleGrabLead(lead);
-                          }}
-                          disabled={!sessionUser || grabbingLeadId === lead.id}
-                          className="px-3.5 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Grab this prospect and make yourself the owner"
-                        >
-                          <Hand className="w-3.5 h-3.5" />
-                          {grabbingLeadId === lead.id ? 'Grabbing...' : 'Grab'}
-                        </button>
-                      )}
+                        {!isOwnedByMe && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleGrabLead(lead);
+                            }}
+                            disabled={grabbingLeadId === lead.id}
+                            className="px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            title={isOwned ? `Take ownership from ${ownerName}` : 'Grab this prospect'}
+                          >
+                            <Hand className="w-3.5 h-3.5" />
+                            {grabbingLeadId === lead.id ? 'Grabbing...' : 'Grab'}
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     <td className="py-4.5 px-5">
