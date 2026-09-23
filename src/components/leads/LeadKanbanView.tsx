@@ -39,7 +39,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
   const [grabbingLeadId, setGrabbingLeadId] = useState<string | null>(null);
 
   const handleGrabLead = async (lead: Lead) => {
-    if (lead.ownerId || grabbingLeadId || currentUser.role === 'admin') return;
+    if (lead.ownerId || grabbingLeadId) return;
     setGrabbingLeadId(lead.id);
     try {
       await claimLeadOwner(lead.id, currentUser.id, currentUser.displayName);
@@ -234,7 +234,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           <span className="text-[11px] text-[#68645D] truncate max-w-[85px] font-medium">
                             {lead.ownerName || 'Assigned'}
                           </span>
-                        ) : currentUser.role === 'admin' ? (
+                         ) : false ? (
                           <span className="text-[10px] text-[#969188] truncate max-w-[85px]">
                             Open for team
                           </span>
