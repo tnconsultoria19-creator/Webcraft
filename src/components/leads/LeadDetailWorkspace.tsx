@@ -112,6 +112,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [aiCustomEnglish, setAiCustomEnglish] = useState('');
   const [aiCustomPortuguese, setAiCustomPortuguese] = useState('');
+  const [editingPitchLanguage, setEditingPitchLanguage] = useState<'english' | 'portuguese' | null>(null);
   const [salesAssistantInput, setSalesAssistantInput] = useState('');
   const [showSalesInputBox, setShowSalesInputBox] = useState(false);
 
@@ -2256,11 +2257,19 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
                   const phone = getLeadPhone(lead);
                   const isCopied = copiedId === `pitch-${salesPitchLanguage}`;
+                  const isEditingPitch = editingPitchLanguage === salesPitchLanguage;
 
                   return (
                     <div className="space-y-3">
-                      <div className="relative bg-[#F9F8F5] border border-[#DDD8CE] rounded-xl p-4 font-sans text-xs text-[#292A29] whitespace-pre-wrap leading-relaxed">
+                      <div className="relative bg-[#F9F8F5] border border-[#DDD8CE] rounded-xl p-4 font-sans text-xs text-[#292A29] leading-relaxed">
                         <div className="absolute top-3 right-3 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditingPitchLanguage(isEditingPitch ? null : salesPitchLanguage)}
+                            className="px-3 py-1 bg-white hover:bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+                          >
+                            {isEditingPitch ? 'Cancel' : 'Edit Message'}
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleCopyText(currentPitch, `pitch-${salesPitchLanguage}`)}
@@ -2279,7 +2288,32 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                             )}
                           </button>
                         </div>
-                        {renderTextWithClickableLinks(currentPitch)}
+                        {isEditingPitch ? (
+                          <div className="pt-10 space-y-2">
+                            <textarea
+                              rows={12}
+                              value={currentPitch}
+                              onChange={(e) =>
+                                salesPitchLanguage === 'english'
+                                  ? setAiCustomEnglish(e.target.value)
+                                  : setAiCustomPortuguese(e.target.value)
+                              }
+                              className="w-full min-h-[260px] bg-white border border-[#DDD8CE] rounded-xl p-3 text-xs text-[#292A29] focus:outline-none focus:border-[#245F6B] resize-y"
+                            />
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => setEditingPitchLanguage(null)}
+                                className="px-4 py-2 bg-[#245F6B] hover:bg-[#1E505A] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Save className="w-3.5 h-3.5" />
+                                Save Message
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{renderTextWithClickableLinks(currentPitch)}</div>
+                        )}
                       </div>
 
                       {/* Quick Action Footbar for this Pitch */}
