@@ -61,7 +61,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
   };
 
   const handleGrabLead = async (lead: Lead) => {
-    if (lead.ownerId === currentUser.id || grabbingLeadId) return;
+    if (lead.ownerId || grabbingLeadId) return;
 
     setGrabbingLeadId(lead.id);
     try {
@@ -266,10 +266,10 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             {isOwnedByMe ? 'You' : ownerName || 'Unassigned'}
                           </div>
                           <div className="text-[10px] text-[#969188]">
-                            {isOwnedByMe ? 'This prospect is yours' : isOwned ? `Owned by ${ownerName}` : 'Not grabbed yet'}
+                            {isOwnedByMe ? 'Grabbed by you' : isOwned ? `Grabbed by ${ownerName}` : 'Not grabbed yet'}
                           </div>
                         </div>
-                        {!isOwnedByMe && (
+                        {!isOwned && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -278,7 +278,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             }}
                             disabled={grabbingLeadId === lead.id}
                             className="px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={isOwned ? `Take ownership from ${ownerName}` : 'Grab this prospect'}
+                            title="Grab this prospect"
                           >
                             <Hand className="w-3.5 h-3.5" />
                             {grabbingLeadId === lead.id ? 'Grabbing...' : 'Grab'}
