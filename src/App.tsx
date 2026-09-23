@@ -883,6 +883,7 @@ export function App() {
             pipelineLayout === 'kanban' ? (
               <LeadKanbanView
                 leads={filteredLeads}
+                currentUser={currentUser}
                 isLoading={isLeadsLoading}
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onUpdateStage={handleUpdateLeadStage}
