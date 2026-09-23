@@ -21,6 +21,7 @@ export type LeadStage =
   | 'template_in_progress'
   | 'template_completed'
   | 'ready_for_outreach'
+  | 'approved'
   | 'outreach_in_progress'
   | 'outreach_sent'
   | 'awaiting_response'

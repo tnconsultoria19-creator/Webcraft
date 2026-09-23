@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar } from 'lucide-react';
+import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar, CheckCircle2 } from 'lucide-react';
 import { Lead, LeadStage } from '../../types';
 import { formatTimeAgo, formatDateTime, formatExternalUrl, getNextStage, getPreviousStage } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
@@ -18,6 +18,7 @@ const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
   { id: 'captured', title: 'Captured Leads' },
   { id: 'template_in_progress', title: 'Prototype Building' },
   { id: 'ready_for_outreach', title: 'Ready for Outreach' },
+  { id: 'approved', title: 'Approved' },
   { id: 'outreach_sent', title: 'Outreach Sent' },
   { id: 'response_received', title: 'Awaiting Response' },
   { id: 'interested', title: 'Interested Leads' },
@@ -178,6 +179,18 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                         className="pt-2 border-t border-[#DDD8CE] flex items-center justify-between gap-2 text-xs"
                         onClick={(e) => e.stopPropagation()}
                       >
+                        {col.id === 'ready_for_outreach' && (
+                          <button
+                            type="button"
+                            onClick={() => onUpdateStage(lead.id, 'approved')}
+                            className="w-full px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs shadow-xs"
+                            title="Approve this message and move the lead to Approved"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Approve</span>
+                          </button>
+                        )}
+                        {col.id !== 'ready_for_outreach' && (
                         <button
                           type="button"
                           onClick={() => prevStage && onUpdateStage(lead.id, prevStage as LeadStage)}
@@ -203,6 +216,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           <span>Forward</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
+                        )}
                       </div>
 
                     </div>
