@@ -931,9 +931,22 @@ export async function handleApiRequest(
       return { status: 400, json: { error: 'leadId and a base64 data URL are required.' } };
     }
 
-    const match = fileOrBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    const match = fileOrBase64.match(/^data:([^;,]+);base64,(.+)$/s);
     if (!match) {
-      return { status: 400, json: { error: 'Invalid image data URL.' } };
+      return { status: 400, json: { error: 'Invalid file data URL.' } };
+    }
+
+    const allowedMimeTypes = new Set([
+      'image/jpeg','image/png','image/webp','image/gif','image/svg+xml',
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/msword','application/vnd.ms-excel',
+      'text/plain','text/csv','text/html','text/css',
+      'application/json','application/zip','application/octet-stream'
+    ]);
+    if (!allowedMimeTypes.has(match[1].toLowerCase())) {
+      return { status: 415, json: { error: 'Unsupported file type: ' + match[1] } };
     }
 
     const mimeType = match[1];
@@ -944,11 +957,11 @@ export async function handleApiRequest(
 
     const maxSize = 10 * 1024 * 1024;
     if (bytes.byteLength > maxSize) {
-      return { status: 413, json: { error: 'Image exceeds the 10MB upload limit.' } };
+      return { status: 413, json: { error: 'File exceeds the 10MB upload limit.' } };
     }
 
     const safeName = (filename || `upload_${Date.now()}`).replace(/[^a-zA-Z0-9._-]/g, '_');
-    const objectKey = `leads/${leadId}/images/${Date.now()}_${genId('file')}_${safeName}`;
+    const objectKey = `leads/${leadId}/files/${Date.now()}_${genId('file')}_${safeName}`;
 
     if (env?.BUCKET) {
       await env.BUCKET.put(objectKey, bytes, {
@@ -981,7 +994,7 @@ export async function handleApiRequest(
     `).bind(id, leadId, objectKey, url, safeName, mimeType, bytes.byteLength, userId, userName, 1, caption || '', now).run();
 
     await db.prepare('INSERT INTO activities (id, userId, userName, action, entityType, entityId, entityName, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .bind(genId('act'), userId, userName, 'image_uploaded', 'lead', leadId, safeName, now)
+      .bind(genId('act'), userId, userName, 'file_uploaded', 'lead', leadId, safeName, now)
       .run();
 
     const image = await db.prepare('SELECT * FROM images WHERE id = ?').bind(id).first();
