@@ -896,6 +896,7 @@ export function App() {
                 onSelectLead={(id) => setSelectedLeadId(id)}
                 onDeleteLead={handleDeleteLead}
                 onBulkDelete={handleBulkDeleteLeads}
+                onUpdateStage={handleUpdateLeadStage}
               />
             )
           )}
