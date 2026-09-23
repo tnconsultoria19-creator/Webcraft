@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar, CheckCircle2, Pencil } from 'lucide-react';
+import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar, CheckCircle2, Pencil, Hand } from 'lucide-react';
 import { Lead, LeadStage } from '../../types';
 import { formatTimeAgo, formatDateTime, formatExternalUrl, getNextStage, getPreviousStage } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
 import { findLeadDuplicates } from '../../lib/searchUtils';
 import { ConfirmModal } from '../common/ConfirmModal';
+import { claimLeadOwner } from '../../lib/firestoreService';
 
 interface LeadKanbanViewProps {
   leads: Lead[];
+  currentUser: { id: string; displayName: string; role?: string };
   isLoading?: boolean;
   onSelectLead: (leadId: string) => void;
   onUpdateStage: (leadId: string, newStage: LeadStage) => void;
@@ -27,12 +29,26 @@ const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
 
 export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
   leads,
+  currentUser,
   isLoading = false,
   onSelectLead,
   onUpdateStage,
   onDeleteLead
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [grabbingLeadId, setGrabbingLeadId] = useState<string | null>(null);
+
+  const handleGrabLead = async (lead: Lead) => {
+    if (lead.ownerId || grabbingLeadId || currentUser.role === 'admin') return;
+    setGrabbingLeadId(lead.id);
+    try {
+      await claimLeadOwner(lead.id, currentUser.id, currentUser.displayName);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to grab this prospect.');
+    } finally {
+      setGrabbingLeadId(null);
+    }
+  };
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[500px] bg-white border border-[#DDD8CE] rounded-2xl">
@@ -214,9 +230,26 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           <span>Back</span>
                         </button>
 
-                        <span className="text-[11px] text-[#68645D] truncate max-w-[85px] font-medium">
-                          {lead.ownerName || 'Unassigned'}
-                        </span>
+                        {lead.ownerId ? (
+                          <span className="text-[11px] text-[#68645D] truncate max-w-[85px] font-medium">
+                            {lead.ownerName || 'Assigned'}
+                          </span>
+                        ) : currentUser.role === 'admin' ? (
+                          <span className="text-[10px] text-[#969188] truncate max-w-[85px]">
+                            Open for team
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleGrabLead(lead)}
+                            disabled={grabbingLeadId === lead.id}
+                            className="px-2.5 py-1 bg-[#E5EEEE] hover:bg-[#245F6B] disabled:opacity-50 text-[#245F6B] hover:text-white font-semibold rounded-full flex items-center gap-1 transition-colors cursor-pointer disabled:cursor-not-allowed text-[10px]"
+                            title="Grab this prospect"
+                          >
+                            <Hand className="w-3 h-3" />
+                            <span>{grabbingLeadId === lead.id ? 'Grabbing...' : 'Grab'}</span>
+                          </button>
+                        )}
 
                         <button
                           type="button"
