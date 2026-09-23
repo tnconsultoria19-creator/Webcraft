@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { zipSync } from 'fflate';
 import {
   X,
   Globe,
@@ -124,6 +125,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   const [imageSearchQuery, setImageSearchQuery] = useState('');
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [pasteToast, setPasteToast] = useState<string | null>(null);
+  const [isDownloadingAttachments, setIsDownloadingAttachments] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -395,6 +397,76 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
       } finally {
         setIsUploadingImage(false);
       }
+    }
+  };
+
+  const getAttachmentDownloadName = (filename: string) => {
+    const parts = filename.split('/');
+    return parts[parts.length - 1] || 'download';
+  };
+
+  const handleDownloadAttachment = async (attachment: ImageAsset) => {
+    try {
+      const response = await fetch(attachment.url);
+      if (!response.ok) throw new Error('Download failed.');
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = getAttachmentDownloadName(attachment.filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      alert(err.message || 'Failed to download file.');
+    }
+  };
+
+  const handleDownloadAllAttachments = async () => {
+    if (!images.length) return;
+
+    setIsDownloadingAttachments(true);
+    try {
+      const files: Record<string, Uint8Array> = {};
+      const usedNames = new Set<string>();
+
+      for (const attachment of images) {
+        if (!attachment.url) continue;
+        const response = await fetch(attachment.url);
+        if (!response.ok) throw new Error(`Failed to download ${attachment.filename}.`);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+
+        let path = attachment.filename || 'file';
+        path = path.replace(/\\/g, '/').replace(/^\/+/, '').split('/').filter(part => part && part !== '.' && part !== '..').join('/');
+        if (!path) path = 'file';
+
+        let candidate = path;
+        let index = 2;
+        while (usedNames.has(candidate)) {
+          const dot = path.lastIndexOf('.');
+          candidate = dot > 0 ? `${path.slice(0, dot)}_${index++}${path.slice(dot)}` : `${path}_${index++}`;
+        }
+
+        usedNames.add(candidate);
+        files[candidate] = bytes;
+      }
+
+      if (!Object.keys(files).length) throw new Error('There are no downloadable files.');
+      const zipBytes = zipSync(files, { level: 6 });
+      const blob = new Blob([zipBytes], { type: 'application/zip' });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${(lead?.name || 'lead').replace(/[^a-zA-Z0-9._-]+/g, '_')}_attachments.zip`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err: any) {
+      alert(err.message || 'Failed to download attachments.');
+    } finally {
+      setIsDownloadingAttachments(false);
     }
   };
 
@@ -1803,7 +1875,17 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                 </h3>
 
                 {images.length > 0 && (
-                  <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleDownloadAllAttachments}
+                      disabled={isDownloadingAttachments}
+                      className="px-3.5 py-1.5 bg-[#245F6B] hover:bg-[#1E505A] text-white rounded-full text-[11px] font-bold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      {isDownloadingAttachments ? 'Preparing ZIP...' : 'Download All'}
+                    </button>
+                    <div className="relative">
                     <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#969188]" />
                     <input
                       type="text"
@@ -1812,6 +1894,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                       placeholder="Search pictures..."
                       className="bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] text-xs rounded-full pl-8 pr-3 py-1.5 focus:outline-none"
                     />
+                  </div>
                   </div>
                 )}
               </div>
@@ -1879,6 +1962,14 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                               >
                                 {copiedId === img.id ? <Check className="w-3 h-3 text-[#4F765C]" /> : <Copy className="w-3 h-3" />}
                                 {copiedId === img.id ? 'Copied' : 'URL'}
+                              </button>
+
+                              <button
+                                onClick={() => handleDownloadAttachment(img)}
+                                className="p-1.5 bg-[#E5EEEE] hover:bg-[#D6E5E7] text-[#245F6B] rounded-full transition-colors cursor-pointer"
+                                title="Download file"
+                              >
+                                <Download className="w-3.5 h-3.5" />
                               </button>
 
                               <button
