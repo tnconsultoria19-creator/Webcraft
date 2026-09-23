@@ -1161,7 +1161,9 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   // Quick Message Templates
   const applyQuickTemplate = (type: 'english' | 'portuguese' | 'initial' | 'followup' | 'pricing') => {
     if (!lead) return;
-    const contactName = getLeadContactPerson(lead);
+    const contact = getLeadContactPerson(lead);
+    const hasIndividualContact = Boolean(lead.contactPerson?.trim() || lead.contacts?.some((c) => c.contactPerson?.trim()));
+    const recipient = hasIndividualContact ? contact : lead.name;
     if (type === 'english') {
       setOutreachMessage(aiCustomEnglish || generateEnglishPitch(lead, currentUser.displayName));
     } else if (type === 'portuguese') {
@@ -1170,11 +1172,11 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
       setOutreachMessage(generateWhatsAppPitch(lead, currentUser.displayName));
     } else if (type === 'followup') {
       setOutreachMessage(
-        `Hi ${contactName}, following up on the website prototype created for ${lead.name}: ${lead.templateUrl || '[Prototype Link]'}. Let me know if you would like us to publish this live for your team!`
+        `Hi ${recipient}, ${hasIndividualContact ? `following up on the website prototype created for ${lead.name}` : `I’m following up on the website prototype I created for your business`}: ${lead.templateUrl || '[Prototype Link]'}. Let me know if you would like us to publish this live for your team!`
       );
     } else if (type === 'pricing') {
       setOutreachMessage(
-        `Hi ${contactName}, for ${lead.name}, our special offer is R650/year (or 30.000 Kz/ano in Angola) payable in 3 installments. Preview: ${lead.templateUrl || '[Prototype Link]'}.`
+        `Hi ${recipient}, our special offer is R650/year (or 30.000 Kz/ano in Angola) payable in 3 installments. Preview: ${lead.templateUrl || '[Prototype Link]'}.`
       );
     }
   };
