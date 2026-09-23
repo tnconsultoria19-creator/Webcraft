@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { zipSync } from 'fflate';
 import {
   X,
   Globe,
@@ -423,12 +422,90 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
     }
   };
 
+  const crc32 = (data: Uint8Array) => {
+    let crc = 0xffffffff;
+    for (let i = 0; i < data.length; i++) {
+      crc ^= data[i];
+      for (let j = 0; j < 8; j++) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+
+  const makeZip = (files: Array<{ name: string; data: Uint8Array }>) => {
+    const encoder = new TextEncoder();
+    const localParts: Uint8Array[] = [];
+    const centralParts: Uint8Array[] = [];
+    let offset = 0;
+
+    const write32 = (view: DataView, pos: number, value: number) => view.setUint32(pos, value >>> 0, true);
+    const write16 = (view: DataView, pos: number, value: number) => view.setUint16(pos, value & 0xffff, true);
+
+    for (const file of files) {
+      const name = encoder.encode(file.name);
+      const data = file.data;
+      const crc = crc32(data);
+      const local = new Uint8Array(30 + name.length + data.length);
+      const lv = new DataView(local.buffer);
+      write32(lv, 0, 0x04034b50);
+      write16(lv, 4, 20);
+      write16(lv, 6, 0x0800);
+      write16(lv, 8, 0);
+      write16(lv, 10, 0);
+      write16(lv, 12, 0);
+      write32(lv, 14, crc);
+      write32(lv, 18, data.length);
+      write32(lv, 22, data.length);
+      write16(lv, 26, name.length);
+      write16(lv, 28, 0);
+      local.set(name, 30);
+      local.set(data, 30 + name.length);
+      localParts.push(local);
+
+      const central = new Uint8Array(46 + name.length);
+      const cv = new DataView(central.buffer);
+      write32(cv, 0, 0x02014b50);
+      write16(cv, 4, 20);
+      write16(cv, 6, 20);
+      write16(cv, 8, 0x0800);
+      write16(cv, 10, 0);
+      write16(cv, 12, 0);
+      write16(cv, 14, 0);
+      write32(cv, 16, crc);
+      write32(cv, 20, data.length);
+      write32(cv, 24, data.length);
+      write16(cv, 28, name.length);
+      write16(cv, 30, 0);
+      write16(cv, 32, 0);
+      write16(cv, 34, 0);
+      write16(cv, 36, 0);
+      write32(cv, 38, 0);
+      write32(cv, 42, offset);
+      central.set(name, 46);
+      centralParts.push(central);
+      offset += local.length;
+    }
+
+    const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    write32(ev, 0, 0x06054b50);
+    write16(ev, 8, files.length);
+    write16(ev, 10, files.length);
+    write32(ev, 12, centralSize);
+    write32(ev, 16, offset);
+    write16(ev, 20, 0);
+
+    const total = [...localParts, ...centralParts, end];
+    const blobParts = total.map(part => new Blob([part]));
+    return new Blob(blobParts, { type: 'application/zip' });
+  };
+
   const handleDownloadAllAttachments = async () => {
     if (!images.length) return;
 
     setIsDownloadingAttachments(true);
     try {
-      const files: Record<string, Uint8Array> = {};
+      const files: Array<{ name: string; data: Uint8Array }> = [];
       const usedNames = new Set<string>();
 
       for (const attachment of images) {
@@ -437,8 +514,8 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
         if (!response.ok) throw new Error(`Failed to download ${attachment.filename}.`);
         const bytes = new Uint8Array(await response.arrayBuffer());
 
-        let path = attachment.filename || 'file';
-        path = path.replace(/\\/g, '/').replace(/^\/+/, '').split('/').filter(part => part && part !== '.' && part !== '..').join('/');
+        let path = (attachment.filename || 'file').replace(/\\/g, '/').replace(/^\/+/, '');
+        path = path.split('/').filter(part => part && part !== '.' && part !== '..').join('/');
         if (!path) path = 'file';
 
         let candidate = path;
@@ -449,13 +526,13 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
         }
 
         usedNames.add(candidate);
-        files[candidate] = bytes;
+        files.push({ name: candidate, data: bytes });
       }
 
-      if (!Object.keys(files).length) throw new Error('There are no downloadable files.');
-      const zipBytes = zipSync(files, { level: 6 });
-      const blob = new Blob([zipBytes], { type: 'application/zip' });
-      const blobUrl = URL.createObjectURL(blob);
+      if (!files.length) throw new Error('There are no downloadable files.');
+
+      const zipBlob = makeZip(files);
+      const blobUrl = URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = blobUrl;
       link.download = `${(lead?.name || 'lead').replace(/[^a-zA-Z0-9._-]+/g, '_')}_attachments.zip`;
