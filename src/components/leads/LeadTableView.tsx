@@ -271,7 +271,7 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                             {isOwnedByMe ? 'Grabbed by you' : isOwned ? `Grabbed by ${ownerName}` : 'Not grabbed yet'}
                           </div>
                         </div>
-                        {!isOwned && currentUser.role !== 'admin' && (
+                        {!isOwned && (
                           <button
                             type="button"
                             onClick={(e) => {
