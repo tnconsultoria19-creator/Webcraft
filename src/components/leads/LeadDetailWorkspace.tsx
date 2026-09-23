@@ -125,6 +125,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [pasteToast, setPasteToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   // Forms
   const [templateUrl, setTemplateUrl] = useState('');
@@ -422,6 +423,7 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
     setIsUploadingImage(true);
     try {
+      let uploaded = 0;
       for (const file of files) {
         await uploadClipboardOrFileToFirebaseStorage(
           lead.id,
@@ -443,7 +445,13 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
   // Attach Image via File Input
   const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!lead || !e.target.files || e.target.files.length === 0) return;
-    const files: File[] = (Array.from(e.target.files) as File[]).filter((f) => f.type.startsWith('image/'));
+    const files: File[] = (Array.from(e.target.files) as File[]).filter((f) => {
+      const name = f.name.toLowerCase();
+      return f.size > 0 && (
+        f.type.startsWith('image/') ||
+        ['.pdf','.doc','.docx','.xls','.xlsx','.txt','.csv','.html','.css','.js','.json','.zip'].some(ext => name.endsWith(ext))
+      );
+    });
     if (files.length === 0) return;
 
     setIsUploadingImage(true);
@@ -455,9 +463,12 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
           currentUser.id,
           currentUser.displayName,
           file.name,
-          'Uploaded picture'
+          'Uploaded file'
         );
+        uploaded++;
       }
+      setPasteToast(`${uploaded} file${uploaded === 1 ? '' : 's'} uploaded successfully.`);
+      setTimeout(() => setPasteToast(null), 3000);
       setActiveTab('images');
     } catch (err: any) {
       alert(err.message || 'Failed to upload image(s)');
@@ -1455,7 +1466,15 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                   type="file"
                   ref={fileInputRef}
                   onChange={handleFileInputChange}
-                  accept="image/*"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.html,.css,.js,.json,.zip"
+                  multiple
+                  className="hidden"
+                />
+                <input
+                  type="file"
+                  ref={folderInputRef}
+                  onChange={handleFileInputChange}
+                  {...({ webkitdirectory: '', directory: '' } as any)}
                   multiple
                   className="hidden"
                 />
@@ -1467,10 +1486,10 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
 
                   <div>
                     <h3 className="font-bold text-sm text-[#292A29]">
-                      {isUploadingImage ? 'Uploading Picture...' : 'Add Picture or Screenshot to Plan'}
+                      {isUploadingImage ? 'Uploading Picture...' : 'Add Pictures, Files or Folder'}
                     </h3>
                     <p className="text-xs text-[#969188] mt-0.5">
-                      Supports PNG, JPG, WEBP, GIF, SVG screenshots and lead assets.
+                      Supports images, PDF, DOCX, XLSX and common website/document assets. You can also upload an entire folder.
                     </p>
                   </div>
 
@@ -1501,6 +1520,18 @@ export const LeadDetailWorkspace: React.FC<LeadDetailWorkspaceProps> = ({
                     >
                       <Upload className="w-3.5 h-3.5 text-[#245F6B]" />
                       <span>Browse Files</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        folderInputRef.current?.click();
+                      }}
+                      disabled={isUploadingImage}
+                      className="px-4 py-2.5 bg-[#4F765C] hover:bg-[#3f604a] text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Upload Folder</span>
                     </button>
                   </div>
 
