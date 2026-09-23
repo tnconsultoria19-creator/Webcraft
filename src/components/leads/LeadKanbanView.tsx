@@ -18,7 +18,7 @@ const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
   { id: 'captured', title: 'Captured Leads' },
   { id: 'template_in_progress', title: 'Prototype Building' },
   { id: 'ready_for_outreach', title: 'Ready for Outreach' },
-  { id: 'approved', title: 'Approved — Ready to Send' },
+  { id: 'approved', title: 'Approved' },
   { id: 'outreach_sent', title: 'Outreach Sent' },
   { id: 'response_received', title: 'Awaiting Response' },
   { id: 'interested', title: 'Interested Leads' },
@@ -188,7 +188,7 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                               title="Review and edit the outreach message"
                             >
                               <Pencil className="w-3.5 h-3.5" />
-                              <span>Review / Edit</span>
+                              <span>Review & Edit</span>
                             </button>
                             <button
                               type="button"
