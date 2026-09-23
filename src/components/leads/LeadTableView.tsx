@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Globe, Eye, ExternalLink, Phone, AlertTriangle, Trash2, FileText, Check, Minus, Hand } from 'lucide-react';
-import { Lead, User } from '../../types';
+import { Lead, User, LeadStage } from '../../types';
 import { getStageLabel, formatDateTime, formatExternalUrl } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
 import { findLeadDuplicates } from '../../lib/searchUtils';
@@ -14,6 +14,7 @@ interface LeadTableViewProps {
   onSelectLead: (leadId: string) => void;
   onDeleteLead?: (leadId: string, leadName: string) => void;
   onBulkDelete?: (leadIds: string[]) => Promise<void>;
+  onUpdateStage?: (leadId: string, newStage: LeadStage) => void;
 }
 
 export const LeadTableView: React.FC<LeadTableViewProps> = ({
@@ -22,7 +23,8 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
   isLoading = false,
   onSelectLead,
   onDeleteLead,
-  onBulkDelete
+  onBulkDelete,
+  onUpdateStage
 }) => {
   const [leadToDelete, setLeadToDelete] = useState<{ id: string; name: string } | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -304,7 +306,45 @@ export const LeadTableView: React.FC<LeadTableViewProps> = ({
                     </td>
 
                     <td className="py-4.5 px-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-2 flex-wrap">
+                        {lead.stage === 'ready_for_outreach' && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSelectLead(lead.id);
+                              }}
+                              className="px-3 py-1.5 bg-white hover:bg-[#F0EDE5] border border-[#DDD8CE] text-[#292A29] rounded-full text-xs font-semibold transition-colors cursor-pointer"
+                            >
+                              Review & Edit
+                            </button>
+                            {onUpdateStage && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onUpdateStage(lead.id, 'approved');
+                                }}
+                                className="px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white rounded-full text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                Approve
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {lead.stage === 'approved' && onUpdateStage && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onUpdateStage(lead.id, 'outreach_sent');
+                            }}
+                            className="px-3 py-1.5 bg-[#245F6B] hover:bg-[#1E505A] text-white rounded-full text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            Mark Sent
+                          </button>
+                        )}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
