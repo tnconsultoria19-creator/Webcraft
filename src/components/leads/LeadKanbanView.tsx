@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar, CheckCircle2 } from 'lucide-react';
+import { Globe, Clock, ChevronLeft, ChevronRight, ExternalLink, Trash2, AlertTriangle, FileText, Calendar, CheckCircle2, Pencil } from 'lucide-react';
 import { Lead, LeadStage } from '../../types';
 import { formatTimeAgo, formatDateTime, formatExternalUrl, getNextStage, getPreviousStage } from '../../lib/utils';
 import { getCountryByName } from '../../lib/currencyUtils';
@@ -18,7 +18,7 @@ const KANBAN_COLUMNS: { id: LeadStage; title: string }[] = [
   { id: 'captured', title: 'Captured Leads' },
   { id: 'template_in_progress', title: 'Prototype Building' },
   { id: 'ready_for_outreach', title: 'Ready for Outreach' },
-  { id: 'approved', title: 'Approved' },
+  { id: 'approved', title: 'Approved — Ready to Send' },
   { id: 'outreach_sent', title: 'Outreach Sent' },
   { id: 'response_received', title: 'Awaiting Response' },
   { id: 'interested', title: 'Interested Leads' },
@@ -180,15 +180,26 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                         onClick={(e) => e.stopPropagation()}
                       >
                         {col.id === 'ready_for_outreach' && (
-                          <button
-                            type="button"
-                            onClick={() => onUpdateStage(lead.id, 'approved')}
-                            className="w-full px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs shadow-xs"
-                            title="Approve this message and move the lead to Approved"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approve</span>
-                          </button>
+                          <div className="w-full flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => onSelectLead(lead.id)}
+                              className="flex-1 px-3 py-1.5 bg-[#F0EDE5] hover:bg-[#E5EEEE] text-[#245F6B] font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs border border-[#245F6B]/20"
+                              title="Review and edit the outreach message"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                              <span>Review / Edit</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onUpdateStage(lead.id, 'approved')}
+                              className="flex-1 px-3 py-1.5 bg-[#4F765C] hover:bg-[#3F614A] text-white font-bold rounded-full flex items-center justify-center gap-1.5 transition-colors cursor-pointer text-xs shadow-xs"
+                              title="Approve the reviewed message and move the lead to Approved"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Approve</span>
+                            </button>
+                          </div>
                         )}
                         {col.id !== 'ready_for_outreach' && (
                         <button
@@ -211,9 +222,9 @@ export const LeadKanbanView: React.FC<LeadKanbanViewProps> = ({
                           onClick={() => nextStage && onUpdateStage(lead.id, nextStage as LeadStage)}
                           disabled={!nextStage}
                           className="px-3 py-1 bg-[#245F6B] hover:bg-[#1E505A] disabled:opacity-30 text-white font-medium rounded-full flex items-center gap-1 transition-colors disabled:cursor-not-allowed cursor-pointer text-xs shadow-xs"
-                          title="Advance pipeline stage"
+                          title={col.id === 'approved' ? 'Mark the outreach as sent' : 'Advance pipeline stage'}
                         >
-                          <span>Forward</span>
+                          <span>{col.id === 'approved' ? 'Mark Sent' : 'Forward'}</span>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
                         )}
